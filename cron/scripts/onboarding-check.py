@@ -14,7 +14,7 @@ import json
 import logging
 import sys
 
-from previ_r2d2.common import config, daily_report
+from previ_r2d2.common import config
 from previ_r2d2.common.dvc_markers import write as write_marker
 from previ_r2d2.preprocessing.onboarding.validation import missing_fields
 
@@ -49,7 +49,7 @@ def run() -> int:
             lines.append(f"{dossier} : complet, prêt pour bv")
 
     body = "\n".join(lines) if lines else "Aucun nouveau raccordement à valider."
-    daily_report.record("onboarding-check", f"Onboarding — {len(lines)} raccordement(s)", body, had_missing)
+    logger.info(body)
     write_marker("onboarding")
     return 0
 

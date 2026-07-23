@@ -15,7 +15,7 @@ import sys
 
 import pandas as pd
 
-from previ_r2d2.common import config, daily_report, mlflow_tracker
+from previ_r2d2.common import config, mlflow_tracker
 from previ_r2d2.common.dvc_markers import write as write_marker
 from previ_r2d2.model.pipeline.eligibility import has_production_model
 from previ_r2d2.model.pipeline.orchestrator import HORIZON_CFG
@@ -61,7 +61,7 @@ def run() -> int:
     body = f"{n_predicted} prédiction(s) horaire(s) réussie(s)."
     if failures:
         body += "\n" + "\n".join(failures)
-    daily_report.record("predict-archive", f"Prédiction+archivage — {n_predicted} réussie(s), {len(failures)} échec(s)", body, had_error)
+    logger.info(body)
 
     write_marker("predict_archive")
     return 1 if had_error else 0

@@ -25,7 +25,7 @@ from pathlib import Path
 
 import requests
 
-from previ_r2d2.common import config, daily_report, dvc_markers
+from previ_r2d2.common import config, dvc_markers
 from previ_r2d2.preprocessing.debit import hydro_export, hydro_update, station_store
 from previ_r2d2.preprocessing.debit.eaufrance import EauFranceClient, EauFranceError, series_range
 from previ_r2d2.preprocessing.debit.hubeau import HubEauClient
@@ -97,7 +97,6 @@ def run(
     if not cfg.exists():
         msg = f"{cfg} introuvable — lance d'abord `python cron/scripts/majdata-memo.py`."
         print(f"✗ {msg}", file=sys.stderr)
-        daily_report.record("maj-data", "[previ-record] maj-data — erreur", msg, has_errors=True)
         return 1
 
     raccordements = json.loads(cfg.read_text(encoding="utf-8"))
@@ -195,8 +194,8 @@ def run(
 
     # Journalisé pour le digest quotidien (daily-sync-report.py) plutôt qu'un
     # mail par exécution -- maj-data tourne toutes les heures.
-    subject, body = _build_report(end, imported, updated, uptodate, skipped, errors)
-    daily_report.record("maj-data", subject, body, has_errors=bool(errors))
+    _, body = _build_report(end, imported, updated, uptodate, skipped, errors)
+    print(body)
     dvc_markers.write("debit")
 
     return 1 if errors else 0
@@ -232,10 +231,6 @@ def main(argv: list[str] | None = None) -> int:
     except Exception as exc:
         print(f"✗ Erreur inattendue : {exc}", file=sys.stderr)
         traceback.print_exc()
-        daily_report.record(
-            "maj-data", "[previ-record] maj-data — erreur inattendue",
-            f"Erreur inattendue : {exc}", has_errors=True,
-        )
         return 1
 
 

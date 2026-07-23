@@ -71,30 +71,3 @@ PREVI_MNT = Path(_get("PREVI_MNT", ""))
 
 # --- MLflow (tracking + artifacts file-based sur NAS, comme Previ_v2) -----
 MLFLOW_URI = _get("PREVI_MLFLOW_URI", "") or None
-
-# --- Notifications e-mail (alerte en cas d'erreur) -----------------------
-MAIL_SMTP_HOST = _get("MAIL_SMTP_HOST", "")
-MAIL_SMTP_PORT = int(_get("MAIL_SMTP_PORT", "587"))
-MAIL_SMTP_USER = _get("MAIL_SMTP_USER", "")
-MAIL_SMTP_PASSWORD = _get("MAIL_SMTP_PASSWORD", "")
-MAIL_FROM = _get("MAIL_FROM", "") or MAIL_SMTP_USER
-MAIL_USE_TLS = str(_get("MAIL_USE_TLS", "true")).strip().lower() in ("1", "true", "yes", "oui")
-
-# Destinataires des alertes. Modifiable ici, ou surchargé via secret_config.py
-# (MAIL_RECIPIENTS = liste), ou via l'env MAIL_RECIPIENTS (emails séparés par des virgules).
-DEFAULT_MAIL_RECIPIENTS = ["sebastien.veyssiere@barthe-enr.fr"]
-
-
-def _get_recipients() -> list[str]:
-    if _secret is not None and hasattr(_secret, "MAIL_RECIPIENTS"):
-        val = getattr(_secret, "MAIL_RECIPIENTS")
-        if isinstance(val, (list, tuple)):
-            return [str(e).strip() for e in val if str(e).strip()]
-        return [e.strip() for e in str(val).split(",") if e.strip()]
-    env = os.environ.get("MAIL_RECIPIENTS", "")
-    if env:
-        return [e.strip() for e in env.split(",") if e.strip()]
-    return DEFAULT_MAIL_RECIPIENTS
-
-
-MAIL_RECIPIENTS = _get_recipients()

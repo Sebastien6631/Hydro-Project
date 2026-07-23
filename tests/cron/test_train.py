@@ -15,29 +15,27 @@ _spec.loader.exec_module(train_script)
 
 def _patch_common(tmp_path, monkeypatch):
     from previ_r2d2.common import config as cfg_mod
-    from previ_r2d2.common import daily_report, dvc_markers
+    from previ_r2d2.common import dvc_markers
 
     monkeypatch.setattr(cfg_mod, "ROOT", tmp_path)
     monkeypatch.setattr(cfg_mod, "CENTRALES_DIR", tmp_path / "centrales")
     monkeypatch.setattr(cfg_mod, "NAS_DATA_ROOT", tmp_path / "nas")
     monkeypatch.setattr(cfg_mod, "MODELS_DIR", tmp_path / "models")
-    monkeypatch.setattr(daily_report, "STATE_DIR", tmp_path / "logs" / "daily_sync_state")
     monkeypatch.setattr(dvc_markers, "MARKERS_DIR", tmp_path / "logs" / "dvc_markers")
     monkeypatch.setattr(train_script, "refresh_data_preparation", lambda dossier: None)
-    return daily_report
 
 
-def test_run_skips_ineligible_dossiers_and_reports_empty_digest(tmp_path, monkeypatch):
-    daily_report = _patch_common(tmp_path, monkeypatch)
+def test_run_skips_ineligible_dossiers_and_reports_empty_digest(tmp_path, monkeypatch, caplog):
+    _patch_common(tmp_path, monkeypatch)
 
     (tmp_path / "centrales" / "apas_G1_G4").mkdir(parents=True)
     (tmp_path / "centrales" / "apas_G1_G4" / "bv.json").write_text("{}", encoding="utf-8")
 
-    exit_code = train_script.run()
+    with caplog.at_level("INFO"):
+        exit_code = train_script.run()
 
     assert exit_code == 0
-    entries = daily_report.read_today()
-    assert "Aucune centrale éligible" in entries[0]["body"]
+    assert "Aucune centrale éligible" in caplog.text
 
 
 def test_train_one_promotes_when_no_production_model_exists(tmp_path, monkeypatch):
@@ -77,11 +75,11 @@ def test_train_one_promotes_when_no_production_model_exists(tmp_path, monkeypatc
     assert (prod_dir / "bv.json").exists()
 
 
-def test_run_continues_after_one_dossier_fails(tmp_path, monkeypatch):
+def test_run_continues_after_one_dossier_fails(tmp_path, monkeypatch, caplog):
     """Une centrale en échec (données corrompues, bug ponctuel...) ne doit
     jamais empêcher les autres centrales éligibles ce jour-là d'être
     entraînées -- cf. isolation par (dossier, horizon) dans `run()`."""
-    daily_report = _patch_common(tmp_path, monkeypatch)
+    _patch_common(tmp_path, monkeypatch)
     centrales_dir = tmp_path / "centrales"
 
     for dossier in ("centrale_en_panne", "centrale_ok"):
@@ -96,17 +94,16 @@ def test_run_continues_after_one_dossier_fails(tmp_path, monkeypatch):
     monkeypatch.setattr(train_script, "train_one", fake_train_one)
     monkeypatch.setattr(train_script, "is_eligible_for_training", lambda d, h: True)
 
-    exit_code = train_script.run()
+    with caplog.at_level("INFO"):
+        exit_code = train_script.run()
 
     assert exit_code == 1  # au moins un échec -> code de retour non-nul
-    entries = daily_report.read_today()
-    body = entries[0]["body"]
-    assert "centrale_en_panne" in body and "ÉCHEC" in body
-    assert "centrale_ok" in body and "PROMU v1" in body
+    assert "centrale_en_panne" in caplog.text and "ÉCHEC" in caplog.text
+    assert "centrale_ok" in caplog.text and "PROMU v1" in caplog.text
 
 
 def test_run_new_dossiers_skips_already_trained_and_trains_new_eligible(tmp_path, monkeypatch):
-    daily_report = _patch_common(tmp_path, monkeypatch)
+    _patch_common(tmp_path, monkeypatch)
     centrales_dir = tmp_path / "centrales"
 
     # "deja_entrainee" a déjà un modèle en prod sur h8 -> relève du mensuel, pas du quotidien.
@@ -133,8 +130,6 @@ def test_run_new_dossiers_skips_already_trained_and_trains_new_eligible(tmp_path
     assert exit_code == 0
     assert ("nouvelle", 8) in calls
     assert not any(d == "deja_entrainee" for d, _ in calls)
-    entries = daily_report.read_today()
-    assert entries[0]["script"] == "train-new"
 
 
 def test_run_new_dossiers_still_proposes_untrained_horizons_of_partially_trained_dossier(tmp_path, monkeypatch):
@@ -142,7 +137,7 @@ def test_run_new_dossiers_still_proposes_untrained_horizons_of_partially_trained
     continuer de proposer h48/h72 ici -- run_monthly_retrain ne traite que
     les horizons DÉJÀ en prod, donc sans ce comportement h48/h72 ne seraient
     jamais entraînés une première fois (ni ici, ni là -- trou permanent)."""
-    daily_report = _patch_common(tmp_path, monkeypatch)
+    _patch_common(tmp_path, monkeypatch)
     centrales_dir = tmp_path / "centrales"
 
     (centrales_dir / "partiellement_entrainee").mkdir(parents=True)
@@ -167,7 +162,7 @@ def test_run_new_dossiers_still_proposes_untrained_horizons_of_partially_trained
 
 
 def test_run_monthly_retrain_skips_never_trained_and_retrains_existing(tmp_path, monkeypatch):
-    daily_report = _patch_common(tmp_path, monkeypatch)
+    _patch_common(tmp_path, monkeypatch)
     centrales_dir = tmp_path / "centrales"
 
     (centrales_dir / "deja_entrainee").mkdir(parents=True)
@@ -189,14 +184,12 @@ def test_run_monthly_retrain_skips_never_trained_and_retrains_existing(tmp_path,
 
     assert exit_code == 0
     assert calls == [("deja_entrainee", 8)]  # seul horizon déjà en prod pour ce dossier
-    entries = daily_report.read_today()
-    assert entries[0]["script"] == "train-monthly"
 
 
 def test_run_new_dossiers_continues_after_data_preparation_failure(tmp_path, monkeypatch):
     """Un échec de rafraîchissement data_preparation pour une centrale ne
     doit pas empêcher les autres d'être traitées."""
-    daily_report = _patch_common(tmp_path, monkeypatch)
+    _patch_common(tmp_path, monkeypatch)
     centrales_dir = tmp_path / "centrales"
 
     for dossier in ("casse", "ok"):

@@ -21,10 +21,9 @@ def test_run_skips_dossiers_without_production_model(tmp_path, monkeypatch):
     monkeypatch.setattr(cfg_mod, "CENTRALES_DIR", tmp_path / "centrales")
     monkeypatch.setattr(cfg_mod, "MODELS_DIR", tmp_path / "models")
     monkeypatch.setattr(cfg_mod, "NAS_ARCHIVE_ROOT", tmp_path / "ARCHIVE")
-    from previ_r2d2.common import daily_report, dvc_markers
+    from previ_r2d2.common import dvc_markers
 
     monkeypatch.setattr(dvc_markers, "MARKERS_DIR", tmp_path / "logs" / "dvc_markers")
-    monkeypatch.setattr(daily_report, "STATE_DIR", tmp_path / "logs" / "daily_sync_state")
 
     dossier_dir = tmp_path / "centrales" / "apas_G1_G4"
     dossier_dir.mkdir(parents=True)
@@ -42,10 +41,9 @@ def test_run_archives_then_predicts_when_model_exists(tmp_path, monkeypatch):
     monkeypatch.setattr(cfg_mod, "CENTRALES_DIR", tmp_path / "centrales")
     monkeypatch.setattr(cfg_mod, "MODELS_DIR", tmp_path / "models")
     monkeypatch.setattr(cfg_mod, "NAS_ARCHIVE_ROOT", tmp_path / "ARCHIVE")
-    from previ_r2d2.common import daily_report, dvc_markers
+    from previ_r2d2.common import dvc_markers
 
     monkeypatch.setattr(dvc_markers, "MARKERS_DIR", tmp_path / "logs" / "dvc_markers")
-    monkeypatch.setattr(daily_report, "STATE_DIR", tmp_path / "logs" / "daily_sync_state")
 
     dossier_dir = tmp_path / "centrales" / "apas_G1_G4"
     dossier_dir.mkdir(parents=True)
@@ -72,7 +70,7 @@ def test_run_archives_then_predicts_when_model_exists(tmp_path, monkeypatch):
     assert len(archived_files) == 1
 
 
-def test_run_continues_after_one_dossier_fails(tmp_path, monkeypatch):
+def test_run_continues_after_one_dossier_fails(tmp_path, monkeypatch, caplog):
     """Une centrale dont la prédiction échoue (données corrompues, bug
     ponctuel...) ne doit jamais empêcher la prédiction des autres centrales
     ayant un modèle en production ce cycle horaire -- même isolation par
@@ -83,10 +81,9 @@ def test_run_continues_after_one_dossier_fails(tmp_path, monkeypatch):
     monkeypatch.setattr(cfg_mod, "CENTRALES_DIR", tmp_path / "centrales")
     monkeypatch.setattr(cfg_mod, "MODELS_DIR", tmp_path / "models")
     monkeypatch.setattr(cfg_mod, "NAS_ARCHIVE_ROOT", tmp_path / "ARCHIVE")
-    from previ_r2d2.common import daily_report, dvc_markers
+    from previ_r2d2.common import dvc_markers
 
     monkeypatch.setattr(dvc_markers, "MARKERS_DIR", tmp_path / "logs" / "dvc_markers")
-    monkeypatch.setattr(daily_report, "STATE_DIR", tmp_path / "logs" / "daily_sync_state")
 
     for dossier in ("centrale_en_panne", "centrale_ok"):
         dossier_dir = tmp_path / "centrales" / dossier
@@ -107,10 +104,9 @@ def test_run_continues_after_one_dossier_fails(tmp_path, monkeypatch):
     monkeypatch.setattr(predict_archive_script, "run_prediction", fake_run_prediction)
     monkeypatch.setattr(predict_archive_script.mlflow_tracker, "log_prediction_hybrid", lambda *a, **k: None)
 
-    exit_code = predict_archive_script.run()
+    with caplog.at_level("INFO"):
+        exit_code = predict_archive_script.run()
 
     assert exit_code == 1  # au moins un échec -> code de retour non-nul
     assert ("centrale_ok", 8) in calls
-    entries = daily_report.read_today()
-    assert entries[0]["has_errors"] is True
-    assert "centrale_en_panne" in entries[0]["body"] and "ÉCHEC" in entries[0]["body"]
+    assert "centrale_en_panne" in caplog.text and "ÉCHEC" in caplog.text

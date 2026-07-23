@@ -36,7 +36,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from previ_r2d2.common import config, daily_report, mlflow_tracker
+from previ_r2d2.common import config, mlflow_tracker
 from previ_r2d2.common.dvc_markers import write as write_marker
 from previ_r2d2.model.pipeline.eligibility import (
     MIN_HISTORY_DAYS,
@@ -76,7 +76,7 @@ def refresh_data_preparation(dossier: str) -> None:
     coûteux et pas nécessaire ici) avant de vérifier son éligibilité/de
     l'entraîner. notify=False : un mail par centrale spammerait, cf.
     docstring module et build-data-preparation.py."""
-    build_data_preparation_script.run(only_dossier=dossier, notify=False)
+    build_data_preparation_script.run(only_dossier=dossier)
 
 
 def train_one(
@@ -156,7 +156,7 @@ def run(dossier: str | None = None, horizon: int | None = None, force: bool = Fa
                 had_error = True
 
     body = "\n".join(summaries) if summaries else "Aucune centrale éligible aujourd'hui."
-    daily_report.record("train", f"Entraînement — {len(summaries)} run(s)", body, had_error)
+    logger.info(body)
     write_marker("train")
     return 1 if had_error else 0
 
@@ -194,7 +194,7 @@ def run_new_dossiers() -> int:
                 had_error = True
 
     body = "\n".join(summaries) if summaries else "Aucune nouvelle centrale à entraîner aujourd'hui."
-    daily_report.record("train-new", f"Entraînement nouvelles centrales — {len(summaries)} run(s)", body, had_error)
+    logger.info(body)
     write_marker("train_new")
     return 1 if had_error else 0
 
@@ -227,7 +227,7 @@ def run_monthly_retrain() -> int:
                 had_error = True
 
     body = "\n".join(summaries) if summaries else "Aucune centrale à réentraîner ce mois-ci."
-    daily_report.record("train-monthly", f"Réentraînement mensuel — {len(summaries)} run(s)", body, had_error)
+    logger.info(body)
     write_marker("train_monthly")
     return 1 if had_error else 0
 

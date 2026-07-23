@@ -25,7 +25,7 @@ import sys
 
 import pandas as pd
 
-from previ_r2d2.common import config, mailer
+from previ_r2d2.common import config
 from previ_r2d2.common.dvc_markers import write as write_marker
 from previ_r2d2.preprocessing.data_preparation.data_preparation_csv import (
     merge_data_preparation,
@@ -41,7 +41,7 @@ DATA_PREPARATION_FILENAME = "data_preparation.csv"
 FULL_HISTORY_START = pd.Timestamp("2000-01-01")
 
 
-def run(only_dossier: str | None = None, full_history: bool = False, notify: bool = True) -> int:
+def run(only_dossier: str | None = None, full_history: bool = False) -> int:
     general = config.REFERENCE_DIR / "config-general.json"
     records = json.loads(general.read_text(encoding="utf-8"))
 
@@ -101,13 +101,7 @@ def run(only_dossier: str | None = None, full_history: bool = False, notify: boo
         lines.append(f"ERREURS ({len(errors)}) :")
         lines += [f"  - {e}" for e in errors]
         lines.append("")
-    subject = f"[previ-record] build-data-preparation — {len(written)} écrit(s), {len(errors)} erreur(s)"
-    # notify=False : appelé par train.py pour une seule centrale, juste avant
-    # de vérifier son éligibilité -- un mail par centrale spammerait (jusqu'à
-    # une trentaine par jour) là où l'usage cron normal (toutes les centrales,
-    # à la demande) attend un seul mail par exécution.
-    if notify:
-        mailer.send_report(subject, "\n".join(lines))
+    logger.info("\n".join(lines))
 
     write_marker("data_preparation")
     return 1 if errors else 0
@@ -121,10 +115,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--dossier", default=None, help="Test ciblé sur un seul dossier.")
     parser.add_argument("--full-history", action="store_true",
                          help="Backfill complet depuis le début de chaque source, pas juste la reprise.")
-    parser.add_argument("--no-notify", action="store_true",
-                         help="N'envoie pas de mail (utilisé par train.py, un dossier à la fois).")
     args = parser.parse_args(argv)
-    return run(only_dossier=args.dossier, full_history=args.full_history, notify=not args.no_notify)
+    return run(only_dossier=args.dossier, full_history=args.full_history)
 
 
 if __name__ == "__main__":
