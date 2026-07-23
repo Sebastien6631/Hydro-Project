@@ -148,8 +148,8 @@ def run(
                 nas_path, status = station_store.resolve_nas_path(station, dossier, role)
 
                 if status == "linked":
-                    # Un autre dossier porte déjà ce code : juste un symlink local, rien à importer.
-                    station_store.ensure_local_symlink(nas_path, dossier, filename)
+                    # Un autre dossier porte déjà ce code : resolve_nas_path a déjà posé
+                    # le symlink local vers le fichier réel de l'autre dossier.
                     print(f"• {dossier}/{filename} [{role}] — LIEN vers dossier existant")
                     continue
 
@@ -181,7 +181,6 @@ def run(
                         uptodate.append((dossier, filename, role, res))
                         print(f"• {dossier}/{filename} [{role}] — déjà à jour")
 
-                station_store.ensure_local_symlink(nas_path, dossier, filename)
             except Exception as exc:
                 msg = f"{dossier}/{filename} [{role}] : {exc}"
                 print(f"  ✗ {msg}", file=sys.stderr)

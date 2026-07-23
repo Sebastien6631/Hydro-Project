@@ -20,7 +20,7 @@ def test_run_skips_dossiers_without_production_model(tmp_path, monkeypatch):
     monkeypatch.setattr(cfg_mod, "ROOT", tmp_path)
     monkeypatch.setattr(cfg_mod, "CENTRALES_DIR", tmp_path / "centrales")
     monkeypatch.setattr(cfg_mod, "MODELS_DIR", tmp_path / "models")
-    monkeypatch.setattr(cfg_mod, "NAS_ARCHIVE_ROOT", tmp_path / "ARCHIVE")
+    monkeypatch.setattr(cfg_mod, "ARCHIVE_ROOT", tmp_path / "ARCHIVE")
     from previ_r2d2.common import dvc_markers
 
     monkeypatch.setattr(dvc_markers, "MARKERS_DIR", tmp_path / "logs" / "dvc_markers")
@@ -40,7 +40,7 @@ def test_run_archives_then_predicts_when_model_exists(tmp_path, monkeypatch):
     monkeypatch.setattr(cfg_mod, "ROOT", tmp_path)
     monkeypatch.setattr(cfg_mod, "CENTRALES_DIR", tmp_path / "centrales")
     monkeypatch.setattr(cfg_mod, "MODELS_DIR", tmp_path / "models")
-    monkeypatch.setattr(cfg_mod, "NAS_ARCHIVE_ROOT", tmp_path / "ARCHIVE")
+    monkeypatch.setattr(cfg_mod, "ARCHIVE_ROOT", tmp_path / "ARCHIVE")
     from previ_r2d2.common import dvc_markers
 
     monkeypatch.setattr(dvc_markers, "MARKERS_DIR", tmp_path / "logs" / "dvc_markers")
@@ -79,7 +79,7 @@ def test_run_continues_after_one_dossier_fails(tmp_path, monkeypatch, caplog):
     monkeypatch.setattr(cfg_mod, "ROOT", tmp_path)
     monkeypatch.setattr(cfg_mod, "CENTRALES_DIR", tmp_path / "centrales")
     monkeypatch.setattr(cfg_mod, "MODELS_DIR", tmp_path / "models")
-    monkeypatch.setattr(cfg_mod, "NAS_ARCHIVE_ROOT", tmp_path / "ARCHIVE")
+    monkeypatch.setattr(cfg_mod, "ARCHIVE_ROOT", tmp_path / "ARCHIVE")
     from previ_r2d2.common import dvc_markers
 
     monkeypatch.setattr(dvc_markers, "MARKERS_DIR", tmp_path / "logs" / "dvc_markers")

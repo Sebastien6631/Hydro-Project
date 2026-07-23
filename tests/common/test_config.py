@@ -15,5 +15,9 @@ def test_models_dir_is_under_root():
     assert config.MODELS_DIR == config.ROOT / "models"
 
 
-def test_nas_archive_root_is_under_nas_data_root():
-    assert config.NAS_ARCHIVE_ROOT == config.NAS_DATA_ROOT / "ARCHIVE"
+def test_archive_root_is_under_project_root():
+    assert config.ARCHIVE_ROOT == config.ROOT / "ARCHIVE"
+
+
+def test_nas_data_root_is_centrales_dir():
+    assert config.NAS_DATA_ROOT == config.CENTRALES_DIR

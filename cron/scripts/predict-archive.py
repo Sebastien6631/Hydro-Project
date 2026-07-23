@@ -44,7 +44,7 @@ def run() -> int:
             if not has_production_model(dossier, horizon):
                 continue
             try:
-                archive_previous_json(dossier, config.CENTRALES_DIR, config.NAS_ARCHIVE_ROOT, now)
+                archive_previous_json(dossier, config.CENTRALES_DIR, config.ARCHIVE_ROOT, now)
                 bv_json = load_bv_json(dossier)
                 exutoire = bv_json["exutoire"]
                 run_prediction(dossier, horizon, exutoire, bv_json, now)

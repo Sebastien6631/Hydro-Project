@@ -21,6 +21,7 @@ venv/
 /centrales/REFERENCE/files/
 /centrales/REFERENCE/config-general.json
 /data/
+/ARCHIVE/
 
 # Dossier claude
 /docs/

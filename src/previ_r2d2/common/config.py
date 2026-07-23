@@ -39,10 +39,14 @@ def _get(name: str, default: str) -> str:
     return os.environ.get(name, default)
 
 
-# --- Stockage des débits (NAS) --------------------------------------------
-# Racine NAS où sont stockés les CSV réels (source de vérité).
-# previ-R2-D2/data/<dossier>/<fichier>.csv n'est qu'un lien symbolique dessus.
-NAS_DATA_ROOT = Path(_get("PREVI_NAS_DATA_ROOT", ""))
+# --- Stockage des débits ---------------------------------------------------
+# Racine de stockage des CSV débit/data_preparation. En production, pointait
+# vers un NAS distinct (previ-R2-D2/centrales/<dossier>/ n'était qu'un
+# symlink dessus, dédup par station_store._index.json) -- injoignable hors
+# serveur. Repointé directement sur CENTRALES_DIR pour ce projet de cours :
+# un seul niveau de stockage, les CSV sont déjà des fichiers réels sous
+# centrales/<dossier>/ (cf. spec simplification 2026-07-23).
+NAS_DATA_ROOT = CENTRALES_DIR
 
 # --- Modèles entraînés (versionnés DVC + tag git) --------------------------
 # models/<dossier>/h<horizon>/ = modèle en production, source de vérité lue
@@ -51,7 +55,9 @@ NAS_DATA_ROOT = Path(_get("PREVI_NAS_DATA_ROOT", ""))
 MODELS_DIR = ROOT / "models"
 
 # --- Archivage horaire des prévisions --------------------------------------
-NAS_ARCHIVE_ROOT = NAS_DATA_ROOT / "ARCHIVE"
+# Chemin local (remplace l'ancien NAS_DATA_ROOT / "ARCHIVE", injoignable hors
+# serveur) -- gitignoré comme le reste des sorties générées.
+ARCHIVE_ROOT = ROOT / "ARCHIVE"
 
 # Racine hydrospot_stream (source de puissance, déjà utilisée par Previ_v2).
 PUISSANCE_SOURCE_ROOT = Path(_get("PREVI_PUISSANCE_SOURCE_ROOT", ""))

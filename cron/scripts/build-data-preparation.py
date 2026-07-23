@@ -33,7 +33,6 @@ from previ_r2d2.preprocessing.data_preparation.data_preparation_csv import (
     write_data_preparation_csv,
 )
 from previ_r2d2.preprocessing.data_preparation.dossier_window import build_dossier
-from previ_r2d2.preprocessing.debit import station_store
 
 logger = logging.getLogger("build-data-preparation")
 
@@ -77,7 +76,6 @@ def run(only_dossier: str | None = None, full_history: bool = False) -> int:
             logger.info("%s : fusion + écriture ...", dossier)
             merged = merge_data_preparation(existing, new_data)
             n = write_data_preparation_csv(merged, nas_path)
-            station_store.ensure_local_symlink(nas_path, dossier, DATA_PREPARATION_FILENAME)
             written.append((dossier, n))
             logger.info("%s : terminé (%d ligne(s) écrite(s))", dossier, n)
         except Exception as exc:

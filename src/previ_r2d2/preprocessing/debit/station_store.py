@@ -1,12 +1,12 @@
-"""Stockage des CSV de débit sur le NAS, avec dédup par code station.
+"""Stockage des CSV de débit, avec dédup par code station.
 
 Un même code station (ex. un amont partagé par deux centrales) n'est stocké
-qu'une fois sur le NAS. Un index (`_index.json`) retient, pour chaque code,
-le chemin du fichier réel qui le porte. Les autres dossiers qui référencent
-ce code reçoivent un symlink NAS vers ce fichier réel.
+qu'une fois. Un index (`_index.json`) retient, pour chaque code, le chemin
+du fichier réel qui le porte. Les autres dossiers qui référencent ce code
+reçoivent un symlink local vers ce fichier réel.
 
-`previ-R2-D2/centrales/<dossier>/<fichier>.csv` est toujours un symlink vers
-le chemin NAS correspondant (réel ou lui-même symlink) — jamais une copie.
+`config.NAS_DATA_ROOT` == `config.CENTRALES_DIR` dans ce projet (un seul
+niveau de stockage -- pas de NAS distinct hors serveur de production).
 """
 
 from __future__ import annotations
@@ -76,15 +76,3 @@ def resolve_nas_path(station: str, dossier: str, role: str) -> tuple[Path, str]:
             own_path.unlink()
         own_path.symlink_to(real_path)
     return real_path, "linked"
-
-
-def ensure_local_symlink(nas_path: Path, dossier: str, filename: str) -> Path:
-    """Crée/rafraîchit `previ-R2-D2/centrales/<dossier>/<filename>` -> `nas_path`."""
-    local_path = config.CENTRALES_DIR / dossier / filename
-    local_path.parent.mkdir(parents=True, exist_ok=True)
-    if local_path.is_symlink() or local_path.exists():
-        if local_path.is_symlink() and local_path.resolve() == nas_path.resolve():
-            return local_path
-        local_path.unlink()
-    local_path.symlink_to(nas_path)
-    return local_path
