@@ -43,14 +43,6 @@ DELINEATE = "previ_r2d2.preprocessing.bv.delineation.delineate_and_measure"
 SELECT_POINTS = "previ_r2d2.preprocessing.bv.delineation.select_meteo_points"
 
 
-@pytest.fixture(autouse=True)
-def no_nas_meteo(tmp_path, monkeypatch):
-    """Évite toute lecture du vrai NAS météo pendant les tests de ce fichier --
-    `historical_grid_points` doit rester une optimisation best-effort, jamais
-    une dépendance dure sur l'environnement de test."""
-    monkeypatch.setattr(bv_builder.config, "NAS_METEO", tmp_path / "no_such_nas")
-
-
 def test_load_bv_mapping_reads_yaml(tmp_path):
     path = tmp_path / "bv_mapping.yaml"
     path.write_text("apas_G1_G4: Apas\ncounozouls_G1: null\n", encoding="utf-8")
@@ -85,54 +77,6 @@ def test_resolve_shapefile_path_mapped_but_file_missing_falls_back(tmp_path, cap
 
     assert path is None
     assert "introuvable" in caplog.text
-
-
-def test_historical_grid_points_returns_none_when_reference_missing(tmp_path):
-    assert bv_builder.historical_grid_points(tmp_path) is None
-
-
-def test_historical_grid_points_returns_none_and_logs_on_corrupted_file(tmp_path, caplog):
-    path = tmp_path / bv_builder.HISTORICAL_GRID_REFERENCE
-    path.parent.mkdir(parents=True)
-    path.write_text("not a valid nwp csv\n", encoding="utf-8")
-
-    with caplog.at_level(logging.WARNING):
-        result = bv_builder.historical_grid_points(tmp_path)
-
-    assert result is None
-    assert "illisible" in caplog.text
-
-
-def test_historical_grid_points_reads_real_reference_file(tmp_path):
-    path = tmp_path / bv_builder.HISTORICAL_GRID_REFERENCE
-    path.parent.mkdir(parents=True)
-    path.write_text(
-        "latitude,longitude,run_date,flow_date,2T (2 metre temperature),"
-        "tp (precipitation),deg0l (zero degree level)\n"
-        "42.6,1.8,2021-01-01,2021-01-01 00:00:00,270.0,0.0,0.0\n",
-        encoding="utf-8",
-    )
-
-    result = bv_builder.historical_grid_points(tmp_path)
-
-    assert result == {(42.6, 1.8)}
-
-
-def test_build_bv_record_passes_historical_points_to_select_meteo_points(tmp_path):
-    fake_historical = {(43.1, 0.9)}
-    with patch(MEASURE_POLYGON, return_value=FAKE_PHYSIO), \
-         patch(DELINEATE), \
-         patch("previ_r2d2.preprocessing.bv.bv_builder.historical_grid_points",
-               return_value=fake_historical), \
-         patch(SELECT_POINTS, return_value=[(43.1, 0.9)]) as mock_select:
-        bv_builder.build_bv_record(
-            "apas_G1_G4", 43.1312, 0.922689, adresse_alt=288,
-            mnt_path=tmp_path / "mnt.tif", rules=FAKE_RULES,
-            shapefile_path=tmp_path / "BV_Apas.shp", generated_utc="2026-07-07T08:30:00Z",
-        )
-
-    mock_select.assert_called_once()
-    assert mock_select.call_args.kwargs["historical_points"] == fake_historical
 
 
 def test_build_bv_record_uses_shapefile_when_available(tmp_path):

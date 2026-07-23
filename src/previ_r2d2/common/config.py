@@ -62,14 +62,13 @@ PUISSANCE_SOURCE_ROOT = Path(_get("PREVI_PUISSANCE_SOURCE_ROOT", ""))
 # fusion power_output retombe silencieusement sur la règle de priorité seule.
 CONSIGNES_ROOT = Path(_get("PREVI_CONSIGNES_ROOT", ""))
 
-# --- Météo NWP (FTP) -------------------------------------------------------
-# Racine NAS où sont mirrorés les fichiers météo NWP (FTP quotidien).
+# --- Météo NWP (lecture de fichiers bruts) ---------------------------------
+# Racine où seraient mirorrés les fichiers météo NWP bruts (acquisition FTP
+# retirée -- hors périmètre du projet de cours, cf. nwp_ftp.py supprimé).
+# `nwp_reader.read_points` renvoie un DataFrame vide si ce dossier est
+# absent/vide -- jamais de crash, dégradation gracieuse en attendant le
+# sous-projet "API météo publique".
 NAS_METEO = Path(_get("PREVI_NAS_METEO", ""))
-
-# Identifiants FTP du fournisseur météo (mirroring quotidien).
-FTP_HOST = _get("PREVI_FTP_HOST", "")
-FTP_USER = _get("PREVI_FTP_USER", "")
-FTP_PASS = _get("PREVI_FTP_PASS", "")
 
 # --- Onboarding BV (délimitation de bassin versant) -----------------------
 # MNT France entière (GeoTIFF, EPSG:4326 ou Lambert93) utilisé pour délimiter

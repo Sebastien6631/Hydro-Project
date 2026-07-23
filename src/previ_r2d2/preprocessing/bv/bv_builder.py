@@ -18,32 +18,14 @@ from pathlib import Path
 
 import yaml
 
-from previ_r2d2.common import config
 from previ_r2d2.preprocessing.bv import delineation, transit
 from previ_r2d2.preprocessing.bv.rules import Rules, estimate_exposition, estimate_kbase, estimate_kc_unit
 from previ_r2d2.preprocessing.debit import station_store
 from previ_r2d2.preprocessing.debit.hubeau import HubEauClient
-from previ_r2d2.preprocessing.meteo import nwp_reader
 
 logger = logging.getLogger(__name__)
 
 ALTITUDE_REVIEW_THRESHOLD_M = 150.0
-
-HISTORICAL_GRID_REFERENCE = Path("2021") / "01" / "01" / "BARTHE_ENR_EC_OP_recent_2021010100_000.csv"
-
-
-def historical_grid_points(nas_meteo: Path) -> set[tuple[float, float]] | None:
-    """Points de la grille NWP de référence 2021 (couverture historique
-    minimale garantie), ou None si absente/illisible -- comportement alors
-    identique à avant ce fix (sélection géométrique pure dans select_meteo_points)."""
-    path = nas_meteo / HISTORICAL_GRID_REFERENCE
-    if not path.exists():
-        return None
-    try:
-        return nwp_reader.grid_points(path)
-    except Exception as exc:
-        logger.warning("Grille de référence 2021 illisible (%s), repli géométrique.", exc)
-        return None
 
 
 def discover_centrale_records(centrales_dir: Path) -> list[dict]:
@@ -162,10 +144,6 @@ def build_bv_record(dossier: str, lat: float, lon: float, adresse_alt: float | N
     calculé (rétro-compatible). En cas d'échec Hub'Eau, la clé est omise
     plutôt que remplie avec une liste vide -- à l'appelant de conserver
     l'ancienne valeur du bv.json existant.
-
-    `stations_meteo_nwp` préfère les points de grille NWP déjà couverts en
-    2021 (cf. `historical_grid_points`) -- repli sur la sélection purement
-    géométrique si aucun candidat du polygone n'a de couverture historique.
     """
     if shapefile_path is not None:
         physio = delineation.measure_from_polygon(shapefile_path, mnt_path)
@@ -175,9 +153,7 @@ def build_bv_record(dossier: str, lat: float, lon: float, adresse_alt: float | N
     kc_unit = estimate_kc_unit(physio.alt_mean, rules)
     kbase, kbase_review = estimate_kbase(physio.alt_mean, rules)
     exposition = estimate_exposition(physio.aspect_mean, rules)
-    points = delineation.select_meteo_points(
-        physio.polygon, mnt_path, historical_points=historical_grid_points(config.NAS_METEO)
-    )
+    points = delineation.select_meteo_points(physio.polygon, mnt_path)
     _log_altitude_mismatch(dossier, adresse_alt, physio.alt_min)
 
     if kbase_review:
