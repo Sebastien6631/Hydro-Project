@@ -39,23 +39,6 @@ def _get(name: str, default: str) -> str:
     return os.environ.get(name, default)
 
 
-# --- API OneGate ---------------------------------------------------------
-# TODO(maxime): confirmer l'URL exacte une fois le bon lien récupéré.
-#   https://<host>/cgi-bin/api/OneGate/app.py/hydrogrid/...
-ONEGATE_BASE_URL = _get(
-    "ONEGATE_BASE_URL",
-    "https://hydrospot.prosohost.fr/cgi-bin/api/OneGate/app.py",
-)
-
-# Jeton d'accès (Authorization: Bearer <token>).
-ONEGATE_TOKEN = _get("PREVI_BEARER_TOKEN", "") or _get("ONEGATE_TOKEN", "")
-
-# Jeton de rafraîchissement (optionnel, pour renouveler l'accès).
-ONEGATE_REFRESH_TOKEN = _get("REFRESCH", "") or _get("PREVI_REFRESH_TOKEN", "")
-
-# Délai maximal (secondes) d'attente d'une réponse HTTP.
-ONEGATE_TIMEOUT = int(_get("ONEGATE_TIMEOUT", "30"))
-
 # --- Stockage des débits (NAS) --------------------------------------------
 # Racine NAS où sont stockés les CSV réels (source de vérité).
 # previ-R2-D2/data/<dossier>/<fichier>.csv n'est qu'un lien symbolique dessus.
