@@ -1,22 +1,15 @@
-"""Récupération de la puissance depuis hydrospot_stream (source brute Previ_v2).
-
-Port de la logique de fusion de Previ_v2/cron/scripts/fusion_csv.py : les 3
-fichiers bruts d'une station (`date_power.csv`, `date_power_fill_nan.csv`,
-`date_power_fill_nan_neg_price.csv`) sont fusionnés sur `Date` en un seul
-CSV. `MA_baisse`/`power_output` reprennent l'étage 1 de Previ_v2
-(write_clean_data_v3.py::ConsignesProcessor) : interpolation linéaire sur
-les fenêtres de consigne EDF (cf. `consignes.py`), sinon priorité
-`Puissance_neg_price` > `Puissance` > 0.0.
-
-`export_puissance_csv` écrit aussi `puissance_horaire.csv` (une ligne/heure) à
-côté de `puissance.csv` : `power_output` nettoyé (détection de chaos,
-interpolation, ré-échantillonnage horaire par médiane -- cf. `cleaning.py`,
-étage 2 de Previ_v2, `data_manager.py::DataManager.load_data`). `puissance.csv`
-reste minute par minute, étage 1 uniquement.
+"""Résolution du dossier hydrospot_stream correspondant à un raccordement.
 
 Le dossier previ-R2-D2 (ex. `apas_G1_G4`) est mis en correspondance avec un
 dossier hydrospot_stream (ex. `Castillon_Apas_G1`) par mot-clé centrale +
-numéro de groupe.
+numéro de groupe, ou via `config/puissance_mapping.yaml` en repli explicite.
+
+Utilisé par `preprocessing/onboarding/validation.py` pour valider qu'un
+raccordement a bien une source de puissance résolvable -- l'import et la
+fusion réelle des fichiers hydrospot_stream (`export_puissance_csv`, NAS
+bloqué hors serveur) ont été retirés, cf. spec simplification 2026-07-23 ;
+`puissance.csv`/`puissance_horaire.csv` des 3 centrales gardées restent des
+données statiques déjà présentes localement.
 """
 
 from __future__ import annotations
@@ -25,17 +18,9 @@ import re
 import unicodedata
 from pathlib import Path
 
-import pandas as pd
 import yaml
 
 from previ_r2d2.common import config
-from previ_r2d2.preprocessing.puissance import cleaning, consignes
-
-SOURCE_FILES = {
-    "date_power.csv": "Puissance",
-    "date_power_fill_nan.csv": "Puissance_fill_nan",
-    "date_power_fill_nan_neg_price.csv": "Puissance_neg_price",
-}
 
 
 class PuissanceMatchError(RuntimeError):
@@ -107,65 +92,3 @@ def find_source_folder(rec: dict, mapping: dict | None = None) -> str:
             f"({candidates})"
         )
     return candidates[0]
-
-
-def _read_source(fichier) -> pd.DataFrame:
-    df = pd.read_csv(fichier, sep=";", parse_dates=["Date"])
-    if not pd.api.types.is_datetime64_any_dtype(df["Date"]):
-        # Une ligne corrompue dans le fichier source fait échouer le parsing
-        # vectorisé ; le dtype de repli n'est pas toujours "object" (ex. `str`
-        # sous pandas 3.x) — on re-coerce dans tous les cas plutôt que de ne
-        # tester qu'une seule valeur de dtype possible.
-        df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
-        df = df[df["Date"].notna()].reset_index(drop=True)
-    return df
-
-
-def export_puissance_csv(source_folder: str, dest_path) -> int:
-    """Fusionne les 3 fichiers bruts de `source_folder` vers `dest_path`.
-
-    Colonnes de sortie : Date;Puissance;Puissance_fill_nan;Puissance_neg_price;
-    MA_baisse;power_output (les deux dernières identiques, cf. docstring du
-    module). Écrit aussi `<dest_path.parent>/puissance_horaire.csv` (power_output
-    nettoyé, horaire, cf. `cleaning.py`). Renvoie le nombre de lignes écrites.
-    """
-    src_dir = config.PUISSANCE_SOURCE_ROOT / source_folder
-
-    merged: pd.DataFrame | None = None
-    for filename, column in SOURCE_FILES.items():
-        path = src_dir / filename
-        if not path.exists():
-            raise PuissanceMatchError(f"{path} introuvable")
-        df = _read_source(path).rename(columns={"Puissance": column})
-        merged = df if merged is None else pd.merge(merged, df, on="Date", how="outer")
-
-    merged = merged.sort_values("Date")
-    value_cols = list(SOURCE_FILES.values())
-    merged[value_cols] = merged[value_cols].fillna(0)
-    for col in value_cols:
-        merged[col] = pd.to_numeric(merged[col], errors="coerce").round(1)
-
-    prefix = consignes.consigne_prefix_for(source_folder)
-    true_events, false_events = consignes.read_consigne_events(
-        prefix, merged["Date"].min(), merged["Date"].max(),
-    )
-    interpolated = consignes.interpolate_consignes(merged, true_events, false_events)
-    merged["MA_baisse"] = merged.apply(
-        lambda row: (
-            interpolated[row["Date"]] if row["Date"] in interpolated.index
-            else row["Puissance_neg_price"] if row["Puissance_neg_price"] > 0
-            else row["Puissance"] if row["Puissance"] > 0
-            else 0.0
-        ),
-        axis=1,
-    ).round(1)
-    merged["power_output"] = merged["MA_baisse"]
-
-    dest_path.parent.mkdir(parents=True, exist_ok=True)
-    merged.to_csv(dest_path, index=False, sep=";", date_format="%Y-%m-%d %H:%M")
-
-    horaire = cleaning.clean_and_resample_hourly(merged[["Date", "power_output"]].set_index("Date"))
-    horaire_path = dest_path.parent / "puissance_horaire.csv"
-    horaire.to_csv(horaire_path, sep=";", date_format="%Y-%m-%d %H:%M")
-
-    return len(merged)

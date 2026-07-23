@@ -56,12 +56,6 @@ NAS_ARCHIVE_ROOT = NAS_DATA_ROOT / "ARCHIVE"
 # Racine hydrospot_stream (source de puissance, déjà utilisée par Previ_v2).
 PUISSANCE_SOURCE_ROOT = Path(_get("PREVI_PUISSANCE_SOURCE_ROOT", ""))
 
-# Racine des ordres de consigne EDF (bridage de puissance), fichiers .true/.false
-# de Previ_v2 (write_clean_data_v3_conf.json::ordres_dir, en dur côté Previ_v2 --
-# jamais en dur ici). Absente -> aucun événement de consigne n'est trouvé, la
-# fusion power_output retombe silencieusement sur la règle de priorité seule.
-CONSIGNES_ROOT = Path(_get("PREVI_CONSIGNES_ROOT", ""))
-
 # --- Météo NWP (lecture de fichiers bruts) ---------------------------------
 # Racine où seraient mirorrés les fichiers météo NWP bruts (acquisition FTP
 # retirée -- hors périmètre du projet de cours, cf. nwp_ftp.py supprimé).
