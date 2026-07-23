@@ -68,6 +68,3 @@ NAS_METEO = Path(_get("PREVI_NAS_METEO", ""))
 # MNT France entière (GeoTIFF, EPSG:4326 ou Lambert93) utilisé pour délimiter
 # les bassins versants amont. Fichier volumineux, jamais versionné.
 PREVI_MNT = Path(_get("PREVI_MNT", ""))
-
-# --- MLflow (tracking + artifacts file-based sur NAS, comme Previ_v2) -----
-MLFLOW_URI = _get("PREVI_MLFLOW_URI", "") or None

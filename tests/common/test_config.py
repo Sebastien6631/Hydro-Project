@@ -17,13 +17,3 @@ def test_models_dir_is_under_root():
 
 def test_nas_archive_root_is_under_nas_data_root():
     assert config.NAS_ARCHIVE_ROOT == config.NAS_DATA_ROOT / "ARCHIVE"
-
-
-def test_mlflow_uri_defaults_to_none(monkeypatch):
-    monkeypatch.delenv("PREVI_MLFLOW_URI", raising=False)
-    import importlib
-
-    from previ_r2d2.common import config as config_mod
-
-    importlib.reload(config_mod)
-    assert config_mod.MLFLOW_URI is None

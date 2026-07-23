@@ -15,7 +15,7 @@ import sys
 
 import pandas as pd
 
-from previ_r2d2.common import config, mlflow_tracker
+from previ_r2d2.common import config
 from previ_r2d2.common.dvc_markers import write as write_marker
 from previ_r2d2.model.pipeline.eligibility import has_production_model
 from previ_r2d2.model.pipeline.orchestrator import HORIZON_CFG
@@ -47,8 +47,7 @@ def run() -> int:
                 archive_previous_json(dossier, config.CENTRALES_DIR, config.NAS_ARCHIVE_ROOT, now)
                 bv_json = load_bv_json(dossier)
                 exutoire = bv_json["exutoire"]
-                prediction = run_prediction(dossier, horizon, exutoire, bv_json, now)
-                mlflow_tracker.log_prediction_hybrid(dossier, horizon, prediction)
+                run_prediction(dossier, horizon, exutoire, bv_json, now)
                 n_predicted += 1
             except Exception as exc:
                 logger.error("Échec prédiction %s h%s : %s", dossier, horizon, exc, exc_info=True)

@@ -60,7 +60,6 @@ def test_run_archives_then_predicts_when_model_exists(tmp_path, monkeypatch):
             "q_entrant_m3s": [1.0], "q_stacking_m3s": [1.0],
         },
     )
-    monkeypatch.setattr(predict_archive_script.mlflow_tracker, "log_prediction_hybrid", lambda *a, **k: None)
 
     exit_code = predict_archive_script.run()
 
@@ -102,7 +101,6 @@ def test_run_continues_after_one_dossier_fails(tmp_path, monkeypatch, caplog):
         return {"q_entrant_m3s": [1.0], "q_stacking_m3s": [1.0]}
 
     monkeypatch.setattr(predict_archive_script, "run_prediction", fake_run_prediction)
-    monkeypatch.setattr(predict_archive_script.mlflow_tracker, "log_prediction_hybrid", lambda *a, **k: None)
 
     with caplog.at_level("INFO"):
         exit_code = predict_archive_script.run()

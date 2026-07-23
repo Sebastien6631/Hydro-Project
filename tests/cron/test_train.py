@@ -49,8 +49,6 @@ def test_train_one_promotes_when_no_production_model_exists(tmp_path, monkeypatc
     monkeypatch.setattr(cfg_mod, "CENTRALES_DIR", centrales_dir)
     monkeypatch.setattr(cfg_mod, "MODELS_DIR", tmp_path / "models")
     monkeypatch.setattr(promotion.subprocess, "run", lambda *a, **k: None)
-    monkeypatch.setattr(train_script.mlflow_tracker, "log_training_hybrid", lambda *a, **k: None)
-    monkeypatch.setattr(train_script.mlflow_tracker, "register_production_version", lambda *a, **k: None)
     from previ_r2d2.common import dvc_markers
 
     monkeypatch.setattr(dvc_markers, "MARKERS_DIR", tmp_path / "logs" / "dvc_markers")

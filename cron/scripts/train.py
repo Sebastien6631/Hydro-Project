@@ -36,7 +36,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from previ_r2d2.common import config, mlflow_tracker
+from previ_r2d2.common import config
 from previ_r2d2.common.dvc_markers import write as write_marker
 from previ_r2d2.model.pipeline.eligibility import (
     MIN_HISTORY_DAYS,
@@ -112,8 +112,6 @@ def train_one(
 
     if decision["decision"] in ("promote", "first_training"):
         version = promote_model(dossier, horizon, candidate_dir, results["kge_stacking"])
-        mlflow_tracker.log_training_hybrid(dossier, horizon, results, candidate_dir)
-        mlflow_tracker.register_production_version(dossier, horizon, version, results["kge_stacking"])
         summary = (
             f"{dossier} h{horizon} : PROMU v{version} "
             f"(kge_candidat={results['kge_stacking']}, kge_prod={decision['production_kge']})"

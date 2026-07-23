@@ -25,7 +25,6 @@ dependencies = [
     "joblib",
     "matplotlib",
     "shap",
-    "mlflow",
 ]
 
 [tool.setuptools.packages.find]
