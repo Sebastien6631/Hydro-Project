@@ -8,7 +8,6 @@ from __future__ import annotations
 from pathlib import Path
 
 from previ_r2d2.common import config
-from previ_r2d2.preprocessing.automate.config import load_sync_config
 from previ_r2d2.preprocessing.puissance.puissance_store import (
     PuissanceMatchError,
     find_source_folder,
@@ -17,12 +16,10 @@ from previ_r2d2.preprocessing.puissance.puissance_store import (
 
 REQUIRED_RACC_FIELDS = ["facteur_debit"]
 REQUIRED_GROUPE_FIELDS = ["priorite", "debit_armement_turbine", "debit_max", "rendement"]
-VALID_FLEX_STRATEGIES = ("DEFAULT", "HAUTE_CHUTE")
+VALID_FLEX_STRATEGIES = ("DEFAULT",)
 
 
-def missing_fields(
-    rec: dict, mapping_path: Path | None = None, automate_sync_path: Path | None = None
-) -> list[str]:
+def missing_fields(rec: dict, mapping_path: Path | None = None) -> list[str]:
     """Liste des champs manquants dans `rec` nécessaires pour puissance/débit/bv/
     entraînement. Liste vide = raccordement complet, prêt pour la suite."""
     missing: list[str] = []
@@ -35,13 +32,6 @@ def missing_fields(
             missing.append("station_vigicrue_reference")
         if not rec.get("stations_vigicrue_amont"):
             missing.append("stations_vigicrue_amont")
-    elif flex_strategy == "HAUTE_CHUTE":
-        automate_sync_path = automate_sync_path if automate_sync_path is not None else (
-            config.REFERENCE_DIR / "automate_sync.yaml"
-        )
-        sync_config = load_sync_config(automate_sync_path) if automate_sync_path.exists() else {}
-        if rec.get("dossier") not in sync_config:
-            missing.append(f"automate_sync (aucune entrée pour '{rec.get('dossier')}' dans {automate_sync_path})")
 
     for field in REQUIRED_RACC_FIELDS:
         if rec.get(field) is None:

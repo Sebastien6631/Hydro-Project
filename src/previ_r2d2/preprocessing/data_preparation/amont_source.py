@@ -7,7 +7,7 @@ from __future__ import annotations
 import pandas as pd
 
 from previ_r2d2.common import config
-from previ_r2d2.preprocessing.automate.debit_csv import read_debit_csv
+from previ_r2d2.preprocessing.debit.debit_csv import read_debit_csv
 from previ_r2d2.preprocessing.debit import station_store
 
 
