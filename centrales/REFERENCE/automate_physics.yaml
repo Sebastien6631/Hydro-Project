@@ -1,0 +1,77 @@
+bonneval_G2:
+  pre_corrections:
+    Pression: {multiply: 0.1, offset: 0}
+  consigne_regulation: {}
+  mapping:
+    NIV_AMONT_Brut: [[Config_deversoir_1, sonde_1]]
+    Pression: [[Config_G2, pression_conduite]]
+    PosDir: [[Config_G2, ouv_groupe]]
+  Config_deversoir_1:
+    Qreserve_fixe: "oui"
+    periode_ete: [[7, 1], [10, 31]]
+    type: "fixe"
+    designation: "Prise d'eau Bonneval"
+    param_segments:
+      - {seuils: [-1000, 0], A: [0.641374607958, 0.001126098139, 0.000000872966, 0.000000000197]}
+      - {seuils: [0, .inf], A: [0.624445383686, 0.003567478407, 0.000067027083, -0.000000048824]}
+  Config_G1:
+    categorie: "haute chute"
+    designation: "Groupe 1"
+    type: "reaction"
+    methode_Qturb_pref: "Q = fct(Puissance)"
+    segment_Q_fct_P:
+      - {seuils: [0, .inf], A: [-0.40946769505384, 0.00337725069186, -0.00000229828943990, 0.00000000088501656602]}
+    diam_conduite: 0.9
+  Config_G2:
+    categorie: "haute chute"
+    designation: "Groupe 2"
+    type: "reaction"
+    methode_Qturb_pref: "Q = fct(Puissance)"
+    segment_Q_fct_P:
+      - {seuils: [0, .inf], A: [0.09007242830620, 0.00124316021625, -0.00000075722460990, 0.00000000175910591856]}
+    diam_conduite: 0.9
+
+melles:
+  pre_corrections:
+    ML2_P_CONDUITE_NETTE: {multiply: 0.1, offset: 0}
+  consigne_regulation:
+    sonde_1: 500
+    sonde_2: 745
+  mapping:
+    ML2_NVO_PLAN_DO_MM_MDN: [[Config_deversoir_1, sonde_1]]
+    ML2_NVO_PLAN_DO_MM_MRS: [[Config_deversoir_2, sonde_2]]
+    ML2_P_CONDUITE_NETTE: [[Config_G1, pression_conduite]]
+    ML2_POS_STAB_INJEC1_G1: [[Config_G1, Ouv_inject_1]]
+    ML2_POS_STAB_INJEC2_G1: [[Config_G1, Ouv_inject_2]]
+    ML2_POS_STAB_INJEC3_G1: [[Config_G1, Ouv_inject_3]]
+    ML2_POS_STAB_INJEC4_G1: [[Config_G1, Ouv_inject_4]]
+    ML2_POS_STAB_INJEC5_G1: [[Config_G1, Ouv_inject_5]]
+  Config_deversoir_1:
+    Qreserve_fixe: "non"
+    periode_ete: [[7, 1], [10, 31]]
+    type: "fixe"
+    designation: "Prise d'eau Maudan"
+    param_segments_1:
+      - {seuils: [-320, 0], A: [0.1, 0.000470284629, 0.000000473830]}
+      - {seuils: [0, .inf], A: [0.1, -0.000522723695, 0.000036354276, -0.000000026130, 0.000000000009]}
+    param_segments_2:
+      - {seuils: [-320, 0], A: [0.083, 0.000402162577, 0.000000428107]}
+      - {seuils: [0, .inf], A: [0.083, -0.000681846401, 0.000036450057, -0.000000026318, 0.000000000009]}
+  Config_deversoir_2:
+    Qreserve_fixe: "non"
+    periode_ete: [[7, 1], [10, 31]]
+    type: "fixe"
+    designation: "Prise d'eau Mouras"
+    param_segments_1:
+      - {seuils: [-.inf, .inf], A: [0.05]}
+  Config_G1:
+    categorie: "haute chute"
+    designation: "Groupe 1"
+    type: "action"
+    methode_Qturb_pref: "Q = fct(Puissance)"
+    constante_correction_Hn: 0
+    segment_Q_fct_P:
+      - {seuils: [0, .inf], A: [0, 0.00074963845146, -0.00000008060808, 0.00000000003028]}
+    segment_Q_fct_ouv_grp:
+      - {seuils: [0, 100], A: [0, 0.00650213, -0.00002844]}
+    diam_conduite: 1

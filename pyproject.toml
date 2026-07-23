@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "previ_r2d2"
+version = "0.1.0"
+description = "Pipeline IA — reprise automatisée de Previ_v2"
+requires-python = ">=3.11"
+dependencies = [
+    "requests",
+    "pandas",
+    "numpy<2.4",  # pysheds 0.5 (dernière version dispo) utilise np.in1d, supprimé en numpy 2.4
+    "pysheds",
+    "rasterio",
+    "geopandas",
+    "shapely",
+    "pyproj",
+    "scikit-learn",
+    "scipy",
+    "pyyaml",
+    "lightgbm==4.6.0",
+    "optuna==4.6.0",
+    "torch==2.12.1",  # installé CPU-only : pip install torch==2.12.1 --index-url https://download.pytorch.org/whl/cpu
+    "joblib",
+    "matplotlib",
+    "shap",
+    "mlflow",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

@@ -1,0 +1,18 @@
+{
+  "kc_slope": -0.00015399172000684085,
+  "kc_intercept": 1.0633674296418743,
+  "kc_clip_min": 0.6,
+  "kc_clip_max": 1.05,
+  "kbase_steps": [
+    [1800, 4.5],
+    [1300, 3.8],
+    [1000, 3.0],
+    [450, 2.0],
+    [0, 2.5]
+  ],
+  "expo_gain": 0.09,
+  "expo_min": 0.7,
+  "expo_max": 1.15,
+  "n_calib": 8,
+  "note": "kc_unit MAE=0.034 ; K_base par paliers, zone 1000-1300 m à confirmer ; exposition ~66% expliquée par l'aspect (gain 0.09) ; BV très ombragés type Melles (0.75) à corriger manuellement."
+}

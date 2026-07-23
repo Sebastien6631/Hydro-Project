@@ -1,0 +1,74 @@
+#!/bin/bash
+
+# /home/sebastien/previ-R2-D2/cron/wrappers/crontab_previ_r2d2.cron
+
+# V1: 2026-07-10 (Sebastien VEYSSIERE)
+
+# V2: 2026-07-13 — bascule sur `dvc repro --force` (debit/debit_automate/puissance
+# sont sans `outs:` donc jamais rejoués par un `dvc repro` nu, cf. dvc.yaml) au lieu
+# d'appeler les scripts directement, pour que le crontab passe uniquement par DVC.
+
+# `--keep-going`/`-k` partout : sans ça, un stage qui échoue (ex. panne Hub'Eau sur
+# `debit`) arrête tout le `dvc repro`, y compris les stages indépendants de la même
+# commande (`debit_automate` ne tournerait pas alors qu'il n'a rien à voir avec
+# Hub'Eau) -- cf. piège "dvc repro arrête tout dès qu'un stage échoue" du skill.
+
+# V3: 2026-07-17 — onboarding automatique (memorandum quotidien), entraînement
+# (nouvelles centrales quotidien via train_new, réentraînement mensuel via
+# train_monthly avec promotion conditionnelle) et prédiction+archivage horaire,
+# tous orchestrés par DVC (dvc/model/dvc.yaml, dvc/postprocessing/dvc.yaml).
+# Le stage `data_preparation` (dvc/preprocessing/dvc.yaml) n'est plus appelé
+# automatiquement par le crontab -- train.py rafraîchit lui-même
+# data_preparation.csv en interne, dossier par dossier, juste avant de vérifier
+# l'éligibilité/entraîner CE dossier précis (cf. train.py::refresh_data_preparation).
+# Le stage DVC reste disponible pour un backfill manuel groupé
+# (`dvc repro dvc/preprocessing/dvc.yaml:data_preparation`), mais plus rien ne
+# l'appelle automatiquement -- décision actée : garder le pattern "un seul
+# script qui boucle en interne" plutôt qu'un stage DVC par dossier (foreach),
+# cohérent avec debit/bv/onboarding_check.
+
+# [00:00 QUOTIDIEN] Détection nouveaux raccordements (memorandum OneGate),
+# juste avant le cycle d'onboarding du jour (puissance 01:00 -> onboarding_check+bv 01:15
+# -> train_new 02:00, cf. lignes suivantes).
+0 0 * * * cd /home/sebastien/previ-R2-D2 && mkdir -p logs && .venv/bin/dvc repro dvc/preprocessing/dvc.yaml:memorandum --force --keep-going >> /home/sebastien/previ-R2-D2/logs/memorandum.log 2>&1
+
+# [08:00 QUOTIDIEN] Météo NWP (FTP) + nettoyage des échéances > 24h des jours
+0 8 * * * cd /home/sebastien/previ-R2-D2 && mkdir -p logs && .venv/bin/python cron/scripts/maj-meteo.py >> /home/sebastien/previ-R2-D2/logs/maj-meteo.log 2>&1 && .venv/bin/python cron/scripts/clean-meteo.py >> /home/sebastien/previ-R2-D2/logs/clean-meteo.log 2>&1
+
+# [:00 TOUTES LES HEURES] Import débit Hub'Eau/eaufrance + sync/calcul débit "automate"
+# (remplace le sync TokAPI Melles + Bonneval de Previ_v2, commentés dans crontab_V1.cron)
+# + prédiction/archivage horaire (dvc/postprocessing/dvc.yaml:predict_archive).
+# Un seul appel dvc repro pour les trois targets : plusieurs `dvc repro` séparés au même
+# horaire se bloquent mutuellement sur le lock exclusif `.dvc/tmp/rwlock` (piège du skill).
+# 2026-07-15/16 : logs/ supprimé -> plus aucun run horaire ni mail de recap).
+0 * * * * cd /home/sebastien/previ-R2-D2 && mkdir -p logs && .venv/bin/dvc repro dvc/preprocessing/dvc.yaml:debit dvc/preprocessing/dvc.yaml:debit_automate dvc/postprocessing/dvc.yaml:predict_archive --force --keep-going >> /home/sebastien/previ-R2-D2/logs/maj-data.log 2>&1
+
+# [01:00 QUOTIDIEN] Fusion puissance (hydrospot_stream)
+0 1 * * * cd /home/sebastien/previ-R2-D2 && mkdir -p logs && .venv/bin/dvc repro dvc/preprocessing/dvc.yaml:puissance --force --keep-going >> /home/sebastien/previ-R2-D2/logs/maj-puissance.log 2>&1
+
+# [01:15 QUOTIDIEN] Onboarding d'une nouvelle centrale détectée par memorandum
+# (00:00) : valide son raccordement (onboarding_check, digest si infos
+# manquantes) puis caractérise son bassin versant (bv) -- nécessaire pour que
+# train.py la découvre (discover_dossiers() liste centrales/*/bv.json).
+# Placé AVANT train_new (02:00), après puissance (01:00) : une centrale
+# onboardée le jour même peut entraîner dès le cycle train_new du même jour.
+15 1 * * * cd /home/sebastien/previ-R2-D2 && mkdir -p logs && .venv/bin/dvc repro dvc/preprocessing/dvc.yaml:onboarding_check dvc/preprocessing/dvc.yaml:bv --force --keep-going >> /home/sebastien/previ-R2-D2/logs/onboarding-bv.log 2>&1
+
+# [02:00 QUOTIDIEN] Entraîne les nouvelles centrales (aucun modèle en
+# production encore) dès qu'elles atteignent 12 mois d'historique --
+# data_preparation.csv rafraîchi en interne, dossier par dossier concerné
+# uniquement (cf. train.py::refresh_data_preparation), jamais pour toutes
+# les centrales -- coût évité pour celles qui n'entraînent pas aujourd'hui.
+0 2 * * * cd /home/sebastien/previ-R2-D2 && mkdir -p logs && .venv/bin/dvc repro dvc/model/dvc.yaml:train_new --force --keep-going >> /home/sebastien/previ-R2-D2/logs/train-new.log 2>&1
+
+# [03:00 LE 1ER DE CHAQUE MOIS] Réentraîne toutes les centrales ayant déjà un
+# modèle en production (l'invocation mensuelle est l'échéance, inconditionnel)
+# -- promotion seulement si le nouveau modèle est meilleur (KGE sur holdout
+# partagé, cf. promotion.py). Même rafraîchissement data_preparation ciblé
+# par dossier que train_new.
+0 3 1 * * cd /home/sebastien/previ-R2-D2 && mkdir -p logs && .venv/bin/dvc repro dvc/model/dvc.yaml:train_monthly --force --keep-going >> /home/sebastien/previ-R2-D2/logs/train-monthly.log 2>&1
+
+# [23:55 QUOTIDIEN] Mail unique de bilan sync (débit + debit_automate + puissance +
+# onboarding_check + train-new + train-monthly + predict-archive, cf.
+# daily_report.SCRIPT_LABELS) --
+55 23 * * * cd /home/sebastien/previ-R2-D2 && mkdir -p logs/daily_sync_state && .venv/bin/dvc repro dvc/preprocessing/dvc.yaml:daily_sync_report --keep-going >> /home/sebastien/previ-R2-D2/logs/daily-sync-report.log 2>&1

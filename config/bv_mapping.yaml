@@ -1,0 +1,17 @@
+# Correspondance dossier centrale (previ-R2-D2) -> nom de shapefile BV
+# (data/reference/shapefiles/BV_<nom>.shp). Le nom du shapefile suit le champ
+# OneGate `amenagement`, pas le `dossier`. Vérifié par recoupement
+# géographique (le polygone contient adresse_lat/adresse_lng de la centrale).
+# Absent ou null -> pas de shapefile connu, repli sur la délimitation MNT
+# (adresse_lat/adresse_lng + delineate_and_measure).
+apas_G1_G4: Apas
+bonneval_G1: Bonneval
+bonneval_G2: Bonneval
+campagne_G1_G2: Campagne-sur-Aude
+clairac_rd_G2_G1: Clairac
+la_bastide_G1_G2_G3: La_Bastide-du-Salat
+morgane_G1_G2: Pont_a_Mousson
+nancy_A: Nancy
+rebouc_G1: Rebouc
+touzac_g2_G2: Touzac
+counozouls_G1: null
