@@ -1,9 +1,5 @@
 [
-  {"Centrale": "bonneval_G2", "K_base": 4.5, "exposition": 1.1, "surface": 74.48, "kc_unit": 0.666, "Altitude_moyenne_BV": 2200},
   {"Centrale": "apas_G1_G4", "K_base": 3.8, "exposition": 1.0, "surface": 2052, "kc_unit": 0.915, "Altitude_moyenne_BV": 1201},
-  {"Centrale": "clairac_rd_G2", "K_base": 2.0, "exposition": 1.0, "surface": 11230, "kc_unit": 0.932, "Altitude_moyenne_BV": 613},
-  {"Centrale": "Melles_Seriail_G1", "K_base": 3.8, "exposition": 0.75, "surface": 45, "kc_unit": 0.911, "Altitude_moyenne_BV": 1389},
   {"Centrale": "nancy_A", "K_base": 2.5, "exposition": 0.9, "surface": 2926, "kc_unit": 1.011, "Altitude_moyenne_BV": 374},
-  {"Centrale": "morgane_G1_G2", "K_base": 2.5, "exposition": 0.9, "surface": 7148, "kc_unit": 0.971, "Altitude_moyenne_BV": 391},
   {"Centrale": "touzac_g2_G2", "K_base": 2.0, "exposition": 1.0, "surface": 9638, "kc_unit": 0.949, "Altitude_moyenne_BV": 690}
 ]
