@@ -61,3 +61,54 @@ def test_load_prediction_window_covers_lookback_and_horizon(tmp_path, monkeypatc
 
     assert not result.empty
     assert result.index.min() <= now - pd.Timedelta(days=4)
+
+
+def test_load_prediction_window_frozen_reads_data_preparation_csv(tmp_path, monkeypatch):
+    from previ_r2d2.preprocessing.data_preparation.data_preparation_csv import write_data_preparation_csv
+
+    centrales_dir = tmp_path / "centrales"
+    reference_dir = tmp_path / "REFERENCE"
+    reference_dir.mkdir()
+    dossier_dir = centrales_dir / "test_centrale"
+    dossier_dir.mkdir(parents=True)
+
+    monkeypatch.setattr(config, "REFERENCE_DIR", reference_dir)
+    monkeypatch.setattr(config, "CENTRALES_DIR", centrales_dir)
+
+    records = [{"dossier": "test_centrale", "flex_strategy": "DEFAULT"}]
+    (reference_dir / "config-general.json").write_text(json.dumps(records), encoding="utf-8")
+
+    last_ts = pd.Timestamp("2026-05-01 10:00:00")
+    index = pd.date_range(last_ts - pd.Timedelta(days=10), last_ts, freq="1h")
+    df = pd.DataFrame({"debit_m3s": np.arange(len(index), dtype=float)}, index=index)
+    write_data_preparation_csv(df, dossier_dir / "data_preparation.csv")
+
+    result = load_prediction_window(
+        "test_centrale", horizon_steps=8, timestep="hourly",
+        now=pd.Timestamp("2026-07-23 09:00:00"),  # ignoré en mode frozen
+        lookback_days=5, source="frozen",
+    )
+
+    assert not result.empty
+    assert result.index.max() == last_ts  # ancré sur la dernière ligne connue, pas sur `now`
+    assert result.index.min() >= last_ts - pd.Timedelta(days=5)
+
+
+def test_load_prediction_window_frozen_returns_empty_when_no_data_preparation_csv(tmp_path, monkeypatch):
+    centrales_dir = tmp_path / "centrales"
+    reference_dir = tmp_path / "REFERENCE"
+    reference_dir.mkdir()
+    (centrales_dir / "test_centrale").mkdir(parents=True)
+
+    monkeypatch.setattr(config, "REFERENCE_DIR", reference_dir)
+    monkeypatch.setattr(config, "CENTRALES_DIR", centrales_dir)
+    (reference_dir / "config-general.json").write_text(
+        json.dumps([{"dossier": "test_centrale"}]), encoding="utf-8"
+    )
+
+    result = load_prediction_window(
+        "test_centrale", horizon_steps=8, timestep="hourly",
+        now=pd.Timestamp("2026-07-23 09:00:00"), source="frozen",
+    )
+
+    assert result.empty

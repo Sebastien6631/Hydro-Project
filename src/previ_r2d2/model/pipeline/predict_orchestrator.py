@@ -154,7 +154,8 @@ def load_trained_models(weights_dir, horizon_steps: int, n_features: int):
 
 
 def run_prediction(
-    dossier: str, horizon: int, exutoire: dict, bv_json: dict, now: pd.Timestamp
+    dossier: str, horizon: int, exutoire: dict, bv_json: dict, now: pd.Timestamp,
+    source: str = "live",
 ) -> dict:
     """Prédit les horizon prochains pas pour une centrale, convertit en débit turbine, écrit un CSV."""
     cfg = HORIZON_CFG[horizon]
@@ -182,7 +183,7 @@ def run_prediction(
 
     logger.info("%s h%s -- lancement à %s", dossier, horizon, now)
 
-    df_window = load_prediction_window(dossier, horizon_steps, timestep, now)
+    df_window = load_prediction_window(dossier, horizon_steps, timestep, now, source=source)
     logger.info("%s h%s -- fenêtre chargée : %s -> %s (%d lignes)", dossier, horizon, df_window.index.min(), df_window.index.max(), len(df_window))
     df_window_seq = shift_amont_columns(df_window, transit_amont, horizon_steps)
     _, seq_len = get_seq_cols(transit_amont, df_window_seq, horizon_steps)

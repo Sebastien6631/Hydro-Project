@@ -95,7 +95,7 @@ def test_run_prediction_end_to_end_produces_csv(tmp_path, monkeypatch):
 
     now = df.index[-1]
 
-    def fake_load_prediction_window(dossier, horizon_steps, timestep, now, lookback_days=90):
+    def fake_load_prediction_window(dossier, horizon_steps, timestep, now, lookback_days=90, **kwargs):
         future_index = pd.date_range(now + pd.Timedelta(days=1), periods=horizon_steps, freq="1D")
         future = pd.DataFrame(
             {
@@ -157,7 +157,7 @@ def test_run_prediction_haute_chute_skips_decalage(tmp_path, monkeypatch):
 
     now = df.index[-1]
 
-    def fake_load_prediction_window(dossier, horizon_steps, timestep, now, lookback_days=90):
+    def fake_load_prediction_window(dossier, horizon_steps, timestep, now, lookback_days=90, **kwargs):
         future_index = pd.date_range(now + pd.Timedelta(days=1), periods=horizon_steps, freq="1D")
         future = pd.DataFrame(
             {
@@ -232,7 +232,7 @@ def test_run_prediction_h8_writes_prevision_json(tmp_path, monkeypatch):
 
     now = df.index[-1]
 
-    def fake_load_prediction_window(dossier, horizon_steps, timestep, now, lookback_days=90):
+    def fake_load_prediction_window(dossier, horizon_steps, timestep, now, lookback_days=90, **kwargs):
         future_index = pd.date_range(now + pd.Timedelta(hours=1), periods=horizon_steps, freq="1h")
         future = pd.DataFrame(
             {
@@ -311,7 +311,7 @@ def test_run_prediction_h48_then_h72_merge_into_enchere_json(tmp_path, monkeypat
 
     now = df.index[-1]
 
-    def fake_load_prediction_window(dossier, horizon_steps, timestep, now, lookback_days=90):
+    def fake_load_prediction_window(dossier, horizon_steps, timestep, now, lookback_days=90, **kwargs):
         future_index = pd.date_range(now + pd.Timedelta(days=1), periods=horizon_steps, freq="1D")
         future = pd.DataFrame(
             {
