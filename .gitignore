@@ -17,6 +17,7 @@ venv/
 # Dossiers de données — entièrement ignorés (sauf centrales/REFERENCE/bv_rules.json
 # et centrales/REFERENCE/centrales_calibration.json, versionnés)
 /centrales/*
+!/centrales/*.dvc
 !/centrales/REFERENCE/
 /centrales/REFERENCE/files/
 /centrales/REFERENCE/config-general.json
