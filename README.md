@@ -146,8 +146,11 @@ debit ──> onboarding_check ──> bv
 en cache, juste un marqueur horodaté écrit en une ligne
 (`previ_r2d2.common.dvc_markers.write(...)`) à la fin de chaque script, pour
 donner une vraie arête DAG entre stages (sans ça, DVC n'a rien à quoi
-accrocher une dépendance). `debit` garde en plus `always_changed: true` : sa
-vraie source (Hub'Eau) est externe à DVC et change en permanence.
+accrocher une dépendance). `debit` et `onboarding_check` gardent en plus
+`always_changed: true` (comme `data_preparation` plus bas) — leurs
+dépendances déclarées ne suffisent pas à elles seules à détecter un
+changement réel (ex. nouveau point Hub'Eau), donc l'exécution est forcée à
+chaque `dvc repro`.
 `data_preparation` **n'est appelé par rien d'automatisé** — `train.py`
 (`dvc/model/dvc.yaml`) le rafraîchit lui-même, dossier par dossier, juste
 avant de vérifier l'éligibilité de CE dossier (décision actée : un `foreach`
