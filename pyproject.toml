@@ -33,3 +33,7 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+addopts = ["-m", "not slow"]
+markers = [
+    "slow: tests lents (entraînement/prédiction réels, pas de mock) -- exclus par défaut, lancer avec -m slow",
+]
