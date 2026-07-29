@@ -30,10 +30,18 @@ import importlib.util
 import json
 from pathlib import Path
 
+import pandas as pd
 import pytest
 
 from previ_r2d2.common import config
-from previ_r2d2.model.pipeline.predict_orchestrator import run_prediction
+from previ_r2d2.model.pipeline.bv_config import transit_centrale_from_bv_json
+from previ_r2d2.model.pipeline.predict_orchestrator import (
+    run_prediction,
+    season_for_month,
+    to_display_timezone,
+)
+from previ_r2d2.model.pipeline.predict_window import find_record
+from previ_r2d2.preprocessing.data_preparation.data_preparation_csv import read_data_preparation_csv
 
 _TRAIN_SPEC = importlib.util.spec_from_file_location(
     "train_script_e2e", Path(__file__).resolve().parents[2] / "cron" / "scripts" / "train.py"
@@ -48,6 +56,45 @@ HORIZON = 8
 def _bv_json() -> dict:
     path = config.CENTRALES_DIR / DOSSIER / "bv.json"
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _now_for_frozen_prediction(bv_json: dict) -> pd.Timestamp:
+    """Calcule `now` à partir du contenu ACTUEL de data_preparation.csv plutôt
+    que de le figer en dur -- si `data_preparation.csv` est régénéré (flux
+    documenté par le README : maj-data.py/build-data-preparation.py), cette
+    valeur reste valide au lieu de silencieusement décrocher.
+
+    Reprend le même raisonnement que l'ancienne valeur codée en dur : `now`
+    n'est utilisé par `run_prediction`, en mode source="frozen", que pour
+    tronquer prevision.json à partir de l'heure de lancement (la fenêtre de
+    données, elle, est toujours ancrée sur la dernière ligne connue de
+    data_preparation.csv, indépendamment de `now`) -- il doit donc tomber
+    juste après la dernière observation affichée et au plus tard sur le
+    premier point prédit pour que les `HORIZON` points obtenus soient
+    exactement l'horizon futur (ni observations passées incluses, ni points
+    futurs tronqués).
+
+    On reproduit ici, avec les mêmes fonctions que `run_prediction`
+    (`season_for_month`/`to_display_timezone`/`transit_centrale_from_bv_json`),
+    le décalage de transit + la conversion d'affichage appliqués à la
+    dernière observation, puis on prend le premier point futur (dernière
+    observation + décalage + 1 pas horaire) comme borne : `>= now` inclut
+    alors exactement les `HORIZON` points futurs et aucune observation
+    passée.
+    """
+    rec = find_record(DOSSIER)
+    path = config.CENTRALES_DIR / DOSSIER / "data_preparation.csv"
+    df = read_data_preparation_csv(path)
+    last_obs = df["debit_m3s"].dropna().index.max()
+
+    decalage_h = 0
+    if rec.get("flex_strategy") != "HAUTE_CHUTE":
+        transit_centrale = transit_centrale_from_bv_json(bv_json)
+        season = season_for_month(last_obs.month)
+        decalage_h = round(transit_centrale.get(season, 0))
+
+    first_future_utc = last_obs + pd.Timedelta(hours=decalage_h) + pd.Timedelta(hours=1)
+    return to_display_timezone(pd.DatetimeIndex([first_future_utc]), rec.get("flex_strategy"))[0]
 
 
 @pytest.mark.slow
@@ -76,18 +123,11 @@ def test_run_prediction_frozen_produces_plausible_prevision_json():
     explicite, cf. run_prediction)."""
     bv_json = _bv_json()
     exutoire = bv_json["exutoire"]
-    # `now` n'est utilisé par run_prediction, en mode source="frozen", que pour
-    # tronquer prevision.json à partir de l'heure de lancement (la fenêtre de
-    # données, elle, est toujours ancrée sur la dernière ligne connue de
-    # data_preparation.csv, indépendamment de `now`) -- il doit donc tomber
-    # juste après la dernière observation affichée et au plus tard sur le
-    # premier point prédit pour que les 8 points obtenus soient exactement
-    # l'horizon futur (ni observations passées incluses, ni points futurs
-    # tronqués). Valeur alignée sur le contenu actuel, gelé, de
-    # centrales/touzac_g2_G2/data_preparation.csv (dernier débit observé non
-    # NaN : 2026-07-08 11:00 UTC) -- 100% déterministe tant que ce fichier ne
-    # change pas (DVC).
-    now = __import__("pandas").Timestamp("2026-07-08 20:00:00")
+    # Dérivé du contenu actuel de data_preparation.csv (cf. docstring de
+    # _now_for_frozen_prediction) -- reste correct si ce fichier est
+    # régénéré, au lieu d'une valeur figée en dur qui décrocherait
+    # silencieusement.
+    now = _now_for_frozen_prediction(bv_json)
 
     result = run_prediction(DOSSIER, HORIZON, exutoire, bv_json, now, source="frozen")
 
