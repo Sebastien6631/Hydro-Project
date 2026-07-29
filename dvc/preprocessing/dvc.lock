@@ -1,96 +1,106 @@
 schema: '2.0'
 stages:
-  memorandum:
-    cmd: python cron/scripts/majdata-memo.py
-    deps:
-    - path: src/previ_r2d2/common/onegate.py
-      hash: md5
-      md5: 7a5adbe5263dd45eff1a24aad735f563
-      size: 4793
-    - path: src/previ_r2d2/preprocessing/onegate/memorandum.py
-      hash: md5
-      md5: f7329f64c706c3df42b28518d43643f2
-      size: 9820
-    outs:
-    - path: centrales/REFERENCE/config-general.json
-      hash: md5
-      md5: a40f69b0db658b1ff4ceb05a0f2b8b52
-      size: 18951
   debit:
-    cmd: python cron/scripts/maj-data.py
+    cmd: .venv/bin/python cron/scripts/maj-data.py
     deps:
     - path: centrales/REFERENCE/config-general.json
       hash: md5
-      md5: a40f69b0db658b1ff4ceb05a0f2b8b52
-      size: 18951
+      md5: 46d2e78e096a3d10180e578921c75082
+      size: 4458
     - path: src/previ_r2d2/preprocessing/debit/
       hash: md5
-      md5: 211c7ca81b44b4472bf35abe6f17929a.dir
-      size: 63599
-      nfiles: 16
-  puissance:
-    cmd: python cron/scripts/maj-puissance.py
-    deps:
-    - path: centrales/REFERENCE/config-general.json
+      md5: 613bb1e71a996523f5d37705b1cddf13.dir
+      size: 76259
+      nfiles: 20
+    outs:
+    - path: logs/dvc_markers/debit.json
       hash: md5
-      md5: a40f69b0db658b1ff4ceb05a0f2b8b52
-      size: 18951
-    - path: src/previ_r2d2/preprocessing/puissance/
-      hash: md5
-      md5: 3656cc4cedfabe8d973ddb57144254f1.dir
-      size: 62225
-      nfiles: 12
+      md5: 74427d98333533f3b3bfa2a02c53c92e
+      size: 42
   bv:
-    cmd: python cron/scripts/onboarding-bv.py batch
+    cmd: .venv/bin/python cron/scripts/onboarding-bv.py batch
     deps:
     - path: centrales/REFERENCE/bv_rules.json
       hash: md5
-      md5: f0c40c2f34d7100a02bfb9b8f169766b
-      size: 508
+      md5: ee1138b2cc04051d341c45fbf24eee4b
+      size: 526
     - path: centrales/REFERENCE/centrales_calibration.json
       hash: md5
-      md5: 3d2f0115b91c81d38055256acd85fd4d
-      size: 909
+      md5: 876b25e7bc9f43ea8446989d76cc9356
+      size: 384
     - path: centrales/REFERENCE/config-general.json
       hash: md5
-      md5: a40f69b0db658b1ff4ceb05a0f2b8b52
-      size: 18951
+      md5: 46d2e78e096a3d10180e578921c75082
+      size: 4458
     - path: centrales/REFERENCE/shapefiles/
       hash: md5
-      md5: f323bfb60284f2dc136d3f52dee5372b.dir
-      size: 723408
-      nfiles: 100
+      md5: 44802b477bd8ad4f19f1e234766cfd81.dir
+      size: 200868
+      nfiles: 15
     - path: config/bv_mapping.yaml
       hash: md5
-      md5: 92c70a93e3430e68830b82858489e560
-      size: 691
+      md5: 4bd9fc0c3e874e3db4e1286b7d3d11f5
+      size: 355
+    - path: logs/dvc_markers/onboarding.json
+      hash: md5
+      md5: a1d54395e827c2f4dc2461dd6aa76b71
+      size: 42
     - path: src/previ_r2d2/preprocessing/bv/
       hash: md5
-      md5: d4364f27d0f13a0530c2702f5f197847.dir
-      size: 168854
+      md5: 59ee76063eaa0ccee0c3642998b62192.dir
+      size: 172086
       nfiles: 16
     outs:
     - path: logs/dvc_markers/bv.json
       hash: md5
-      md5: 3d4dff525752dca6e1913543b7ca37eb
+      md5: 618f5a479ec0178f8c072176f0340052
       size: 42
-  debit_automate:
-    cmd: python cron/scripts/maj-automate.py
+  onboarding_check:
+    cmd: .venv/bin/python cron/scripts/onboarding-check.py
     deps:
-    - path: centrales/REFERENCE/automate_physics.yaml
-      hash: md5
-      md5: 7f567fd21efe52a16f71f611b483c845
-      size: 2924
-    - path: centrales/REFERENCE/automate_sync.yaml
-      hash: md5
-      md5: 94971ac41d5ea47ef5a14b63ccd7414e
-      size: 1466
     - path: centrales/REFERENCE/config-general.json
       hash: md5
-      md5: a40f69b0db658b1ff4ceb05a0f2b8b52
-      size: 18951
-    - path: src/previ_r2d2/preprocessing/automate/
+      md5: 46d2e78e096a3d10180e578921c75082
+      size: 4458
+    - path: logs/dvc_markers/debit.json
       hash: md5
-      md5: fe47c43d1af836867a3a610ea8bc0f31.dir
-      size: 45790
-      nfiles: 13
+      md5: 74427d98333533f3b3bfa2a02c53c92e
+      size: 42
+    - path: src/previ_r2d2/preprocessing/onboarding/validation.py
+      hash: md5
+      md5: f1ddfc9d7b299cf225b0036596d8a2e3
+      size: 2359
+    outs:
+    - path: logs/dvc_markers/onboarding.json
+      hash: md5
+      md5: a1d54395e827c2f4dc2461dd6aa76b71
+      size: 42
+  data_preparation:
+    cmd: .venv/bin/python cron/scripts/build-data-preparation.py
+    deps:
+    - path: centrales/REFERENCE/config-general.json
+      hash: md5
+      md5: 46d2e78e096a3d10180e578921c75082
+      size: 4458
+    - path: logs/dvc_markers/bv.json
+      hash: md5
+      md5: 618f5a479ec0178f8c072176f0340052
+      size: 42
+    - path: logs/dvc_markers/debit.json
+      hash: md5
+      md5: 74427d98333533f3b3bfa2a02c53c92e
+      size: 42
+    - path: src/previ_r2d2/preprocessing/data_preparation/
+      hash: md5
+      md5: 93ae83d6de3fc2cf61ebb21c05289912.dir
+      size: 26204
+      nfiles: 15
+    - path: src/previ_r2d2/preprocessing/meteo/nwp_reader.py
+      hash: md5
+      md5: 3dacf90781efc5b006a3297dfcb1948a
+      size: 3320
+    outs:
+    - path: logs/dvc_markers/data_preparation.json
+      hash: md5
+      md5: 717a52b6bb5aaa6ba90bd9d1182ae948
+      size: 42
