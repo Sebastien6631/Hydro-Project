@@ -86,8 +86,8 @@ previ-R2-D2/
 ├── centrales/                     # données des 3 centrales -- <dossier>/ versionné via DVC
 │   │                              #   (remote local ../remote_dvc, cf. <dossier>.dvc à la racine)
 │   ├── REFERENCE/                 # bv_rules.json + centrales_calibration.json (git-tracké) ;
-│   │                              #   config-general.json (présent localement, gitignoré, non DVC) ;
-│   │                              #   shapefiles/, files/ (gitignorés)
+│   │                              #   config-general.json + shapefiles/ versionnés via DVC ;
+│   │                              #   files/ (gitignoré, non utilisé dans cette version)
 │   └── <dossier>/                 # config-raccordement.json, *.csv, bv.json, data_preparation.csv,
 │                                  #   prevision.json, enchere.json
 └── data/                          # inutilisé pour l'instant (réservé à un usage futur)
@@ -95,12 +95,48 @@ previ-R2-D2/
 
 ## Installation
 
+L'environnement réel est un env conda dédié (`projet-mlops`, Python 3.11,
+créé via conda-forge) — pas un simple `venv` + `pip install -r
+requirements.txt` (`requirements.txt` est un vestige minimal, non à jour).
+
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-pip install -e .
+conda create -n projet-mlops python=3.11 -c conda-forge -y
+conda activate projet-mlops
+
+pip install torch==2.12.1 --index-url https://download.pytorch.org/whl/cpu
+pip install requests pandas "numpy<2.4" scikit-learn scipy pyyaml \
+    lightgbm==4.6.0 optuna==4.6.0 joblib matplotlib shap shapely pyproj \
+    dvc pytest
+pip install -e . --no-deps   # --no-deps : cf. note ci-dessous
+
+dvc pull   # données statiques des 3 centrales (config-general.json,
+           # shapefiles/, centrales/<dossier>/...) depuis le remote DVC local
 ```
+
+> **Pourquoi `--no-deps`** — `pyproject.toml` déclare aussi `rasterio`,
+> `geopandas` et `pysheds` comme dépendances (délimitation du bassin
+> versant par MNT, repli utilisé seulement quand aucun shapefile connu
+> n'existe). Ils ne sont **délibérément pas installés** dans cet
+> environnement : ce repli n'est jamais exercé pour les 3 centrales déjà
+> onboardées ici (shapefile connu pour chacune), ces paquets restent en
+> import paresseux (`import` à l'intérieur des fonctions qui en ont
+> besoin, jamais au chargement du module), et ils sont lourds à installer
+> (GDAL). `pip install -e .` sans `--no-deps` essaierait de les installer.
+
+Après la création initiale, chaque nouvelle session shell nécessite juste
+`conda activate projet-mlops`. Certaines commandes de ce dépôt (les `cmd:`
+de `dvc/*/dvc.yaml`, quelques exemples de ce README) utilisent explicitement
+`.venv/bin/python` plutôt que `python` nu — c'est un shim shell (POSIX)
+créé localement, pointant vers l'interpréteur de l'env conda, utile pour
+qu'un sous-processus lancé depuis du code déjà en cours d'exécution (ex.
+`promote_model` qui appelle `dvc add`) retrouve le bon interpréteur/PATH
+sans dépendre d'un shell déjà activé. Il n'est pas nécessaire si votre env
+conda est actif : `python`/`pytest`/`dvc` nus fonctionnent identiquement.
+Sous Windows, ce shim POSIX ne peut être invoqué que depuis un shell qui
+sait interpréter un shebang (ex. Git Bash) — pas depuis `cmd.exe`/PowerShell
+natif ; c'est pour cela que `dvc repro` peut échouer dans un environnement
+purement Windows alors que lancer les scripts directement via Git Bash
+fonctionne.
 
 ## Configuration
 
@@ -206,19 +242,25 @@ corrélation directe est peu fiable). Écrit `centrales/<dossier>/bv.json`.
 `--force` — voir `src/previ_r2d2/preprocessing/bv/README.md` pour le détail
 du schéma de sortie et de la logique de repli.
 
-**Sélection des points météo NWP (`stations_meteo_nwp`)** — la grille NWP
-réelle s'est densifiée avec le temps (la grille 2021-2024 est un sous-ensemble
-strict de la grille actuelle, aucun point supprimé, seulement ajoutés).
-`select_meteo_points` préfère désormais les points de grille déjà couverts en
-2021 (`bv_builder.historical_grid_points`, lu depuis un fichier NWP de
-référence sur le NAS) et ne retombe sur la sélection purement géométrique que
-si aucun candidat du polygone n'a de couverture historique (région
-nouvellement couverte). **Limite connue** : certaines régions entières
-(sud, ex. `campagne_G1_G2`, `la_bastide_G1_G2_G3`, `counozouls_G1`) n'étaient
-tout simplement pas dans la grille avant le 2024-12-06 — pour elles, aucun
-point du polygone n'a de couverture historique, le repli s'applique, et le
-`data_preparation.csv` correspondant aura ~70% de son historique débit sans
-météo (gap réel côté fournisseur, rien à corriger côté code).
+**Sélection des points météo NWP (`stations_meteo_nwp`)** — dans cette
+version, `select_meteo_points` (`preprocessing/bv/delineation.py`) est
+purement géométrique : génère les nœuds de grille NWP (pas 0.1°) dans
+l'emprise du bassin versant, garde ceux dont le centre tombe dans le
+polygone, puis, s'il y en a plus que `MAX_METEO_POINTS`, réduit par
+k-means sur (latitude, longitude, altitude) et retient le nœud le plus
+proche de chaque centroïde. La fonction accepte toujours un paramètre
+optionnel `historical_points` (préférence pour des points de grille
+couverts dès une période de référence antérieure, utile quand la grille
+NWP s'est densifiée avec le temps) mais plus aucun appelant ne le
+renseigne dans cette version — la préférence historique est donc un
+chemin mort en pratique, la sélection observée est toujours la
+purement géométrique. **Limite connue (héritée de la production)** :
+certaines régions n'étaient pas couvertes par la grille NWP avant une
+certaine date ; pour un raccordement dont le bassin versant tombe dans
+une telle région, `data_preparation.csv` peut avoir une portion de son
+historique débit sans météo en face (gap réel côté fournisseur, rien à
+corriger côté code) — cela ne concerne aucune des 3 centrales gardées
+dans ce dépôt.
 
 ```bash
 python cron/scripts/onboarding-bv.py batch                              # toutes les centrales
@@ -327,6 +369,17 @@ DVC + tag git (`<dossier>-h<horizon>-v<N>`, rollback = `git checkout <tag> &&
 dvc pull`) — jamais dans `weights/hybrid/` (zone de travail manuelle) ni
 `weights/hybrid_candidate/` (candidat en cours d'évaluation, jamais lu par la
 prédiction).
+
+> **Attention (tests `slow`)** — `promote_model` fait un vrai `dvc add` +
+> `git add` + `git commit` + `git tag` sur le dépôt courant, pas une
+> simulation. Les tests d'intégration marqués `slow`
+> (`tests/integration/test_train_predict_e2e.py`) appellent le vrai
+> `train_one` -> `promote_model` : les lancer pour de vrai (`pytest -m slow`)
+> crée un commit + tag réels sur la branche courante à chaque exécution
+> (nouvelle version `v2`, `v3`, ... à chaque relance). C'est volontaire
+> (démonstration pédagogique du mécanisme de promotion réel), pas un mock à
+> corriger — mais soyez-en conscient avant de lancer la suite `slow` sur une
+> branche que vous ne voulez pas polluer de commits.
 
 ### `predict-archive.py` — prédiction + archivage horaire
 

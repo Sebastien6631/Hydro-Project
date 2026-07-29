@@ -8,7 +8,21 @@ on lance `pytest tests/` sans ce dossier ; lancer explicitement avec
 Utilise touzac_g2_G2 (pas encore de modèle en production, contrairement à
 apas_G1_G4) et le mode source="frozen" pour la prédiction (aucun appel
 réseau, ancré sur la dernière ligne connue de data_preparation.csv --
-déterministe, reproductible sur n'importe quelle machine)."""
+déterministe, reproductible sur n'importe quelle machine).
+
+**Effet de bord réel et intentionnel (git commit + tag)** --
+`test_train_one_produces_a_candidate_model_for_touzac` appelle le vrai
+`train_one` -> `promote_model` (`model/pipeline/promotion.py`), pas un mock :
+si le candidat entraîné bat le modèle en production (ou qu'il n'y en a pas
+encore), la promotion fait un vrai `dvc add` + `git add` + `git commit` +
+`git tag` sur CE dépôt (ex. commit `8daa765`, tag `touzac_g2_G2-h8-v1`).
+Relancer ce test créera donc une NOUVELLE version promue (v2, v3, ...) avec
+son propre commit/tag réels à chaque exécution -- ce n'est pas un défaut
+d'hygiène de test à corriger : c'est délibéré et pédagogiquement utile, ça
+démontre concrètement comment le système de production versionne ses
+modèles. Ce test n'est donc pas idempotent au sens habituel ; le
+comportement attendu quand on le relance est justement de voir apparaître
+une nouvelle version."""
 
 from __future__ import annotations
 
