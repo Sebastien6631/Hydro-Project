@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
 """onboarding-check — stage DVC dvc/preprocessing/dvc.yaml:onboarding_check.
 
-Tourne après puissance/debit/debit_automate (dépendance marker). Pour chaque
-raccordement sans bv.json (pas encore onboardé), valide config-raccordement.json
-et journalise les infos manquantes dans le digest quotidien -- idempotent,
-retenté automatiquement le lendemain via `memorandum` tant que la config
-n'est pas complète.
+Tourne après `debit` (dépendance sur son marqueur, cf.
+dvc/preprocessing/dvc.yaml). Pour chaque raccordement sans bv.json (pas
+encore onboardé), valide config-raccordement.json et journalise/logge les
+infos manquantes -- idempotent (peut être relancé sans risque). Note :
+`config-general.json` est désormais une donnée statique versionnée DVC
+(plus de re-fetch quotidien type `memorandum`/OneGate dans cette version),
+donc il n'y a plus de mécanisme qui "complète" automatiquement un
+raccordement incomplet d'un jour à l'autre -- un raccordement signalé
+incomplet ici le reste tant que `config-general.json`/
+`config-raccordement.json` n'est pas corrigé manuellement.
 """
 
 from __future__ import annotations
@@ -30,7 +35,6 @@ def load_records() -> list[dict]:
 
 def run() -> int:
     lines = []
-    had_missing = False
     for rec in load_records():
         dossier = rec.get("dossier")
         try:
@@ -38,12 +42,10 @@ def run() -> int:
                 continue
             missing = missing_fields(rec)
         except Exception as exc:
-            had_missing = True
             logger.error("Échec validation raccordement %r : %s", rec, exc, exc_info=True)
             lines.append(f"{dossier or '?'} : enregistrement invalide ({type(exc).__name__}: {exc})")
             continue
         if missing:
-            had_missing = True
             lines.append(f"{dossier} : {', '.join(missing)}")
         else:
             lines.append(f"{dossier} : complet, prêt pour bv")

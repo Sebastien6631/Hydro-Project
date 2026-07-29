@@ -1,6 +1,6 @@
 """Archivage horaire des JSON de prévision -- avant que predict_orchestrator
 n'écrase prevision.json/enchere.json avec la nouvelle heure, copie l'existant
-vers NAS_ARCHIVE_ROOT/<dossier>/<AAAA>/<MM>/<JJ>/<nom>_<horodatage>.json (un
+vers ARCHIVE_ROOT/<dossier>/<AAAA>/<MM>/<JJ>/<nom>_<horodatage>.json (un
 fichier par heure archivée, historique complet).
 
 Le fichier existant a été produit lors du run précédent, une heure avant

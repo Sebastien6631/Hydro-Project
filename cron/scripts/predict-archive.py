@@ -54,8 +54,7 @@ def run() -> int:
                 had_error = True
                 failures.append(f"{dossier} h{horizon} : ÉCHEC ({exc})")
 
-    # Comme maj-data.py/maj-automate.py (aussi horaires) : un run par heure
-    # journalisé, agrégé en UN SEUL mail quotidien par daily-sync-report.py --
+    # Comme maj-data.py (aussi horaire) : un run par heure journalisé/loggé,
     # jamais un mail par run horaire (24x/jour).
     body = f"{n_predicted} prédiction(s) horaire(s) réussie(s)."
     if failures:

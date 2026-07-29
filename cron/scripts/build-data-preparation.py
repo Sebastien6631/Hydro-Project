@@ -11,7 +11,7 @@ la date des entraînements, pas d'une fréquence fixe).
 
 Usage :
     python cron/scripts/build-data-preparation.py
-    python cron/scripts/build-data-preparation.py --dossier melles
+    python cron/scripts/build-data-preparation.py --dossier apas_G1_G4
     python cron/scripts/build-data-preparation.py --full-history
 """
 

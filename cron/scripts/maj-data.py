@@ -95,7 +95,7 @@ def run(
     cfg = config_path or config.REFERENCE_DIR / "config-general.json"
 
     if not cfg.exists():
-        msg = f"{cfg} introuvable — lance d'abord `python cron/scripts/majdata-memo.py`."
+        msg = f"{cfg} introuvable — lance d'abord `dvc pull` (données statiques versionnées, cf. README)."
         print(f"✗ {msg}", file=sys.stderr)
         return 1
 
@@ -191,8 +191,8 @@ def run(
         f"{len(uptodate)} à jour, {skipped} ignoré(s), {len(errors)} erreur(s)."
     )
 
-    # Journalisé pour le digest quotidien (daily-sync-report.py) plutôt qu'un
-    # mail par exécution -- maj-data tourne toutes les heures.
+    # Bilan affiché/loggé plutôt qu'un mail par exécution -- maj-data tourne
+    # toutes les heures.
     _, body = _build_report(end, imported, updated, uptodate, skipped, errors)
     print(body)
     dvc_markers.write("debit")

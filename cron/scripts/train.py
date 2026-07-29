@@ -74,8 +74,7 @@ def refresh_data_preparation(dossier: str) -> None:
     """Rafraîchit data_preparation.csv pour CE dossier uniquement (jamais
     toutes les centrales -- ce serait le stage DVC data_preparation complet,
     coûteux et pas nécessaire ici) avant de vérifier son éligibilité/de
-    l'entraîner. notify=False : un mail par centrale spammerait, cf.
-    docstring module et build-data-preparation.py."""
+    l'entraîner."""
     build_data_preparation_script.run(only_dossier=dossier)
 
 

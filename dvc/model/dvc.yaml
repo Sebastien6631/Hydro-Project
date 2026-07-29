@@ -15,8 +15,8 @@ stages:
     # (qui rafraîchirait TOUTES les centrales, y compris celles qui
     # n'entraînent pas aujourd'hui -- coût évité). L'éligibilité (12 mois
     # d'historique) est calculée en interne à chaque exécution -- comme
-    # debit/puissance/debit_automate, always_changed force ce check quotidien
-    # même si les deps déclarées n'ont pas changé.
+    # debit (dvc/preprocessing/dvc.yaml), always_changed force ce check
+    # quotidien même si les deps déclarées n'ont pas changé.
     always_changed: true
     outs:
       - logs/dvc_markers/train_new.json:

@@ -1,6 +1,7 @@
 """Lecture/écriture/fusion du Data_Preparation (débit + météo + amont brut,
-par centrale) -- même logique d'historisation que `automate/debit_csv.py`,
-mais sur un DataFrame multi-colonnes plutôt qu'une Series."""
+par centrale) -- même logique d'historisation que
+`preprocessing/debit/debit_csv.py`, mais sur un DataFrame multi-colonnes
+plutôt qu'une Series."""
 
 from __future__ import annotations
 

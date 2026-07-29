@@ -90,10 +90,11 @@ def transit_amont_reference(df_amont: pd.DataFrame, df_reference: pd.DataFrame) 
 def transit_reference_centrale(df_reference: pd.DataFrame, df_puissance: pd.DataFrame) -> dict[str, int]:
     """Cross-corrélation débit référence -> power_output, par saison.
 
-    `df_puissance` : censé provenir de `puissance_horaire.csv` (déjà nettoyé et
-    horaire, cf. `preprocessing/puissance/cleaning.py`) -- le `.resample("h").mean()`
-    ci-dessous est un no-op défensif sur une entrée déjà horaire, conservé pour ne
-    pas retoucher une fonction déjà testée. Les années >= `ANNEE_R2_ACTIVE`
+    `df_puissance` : censé provenir de `puissance_horaire.csv` (invariant
+    attendu par cette fonction : déjà nettoyé et déjà horaire) -- le
+    `.resample("h").mean()` ci-dessous est un no-op défensif sur une entrée
+    déjà horaire, conservé pour ne pas retoucher une fonction déjà testée.
+    Les années >= `ANNEE_R2_ACTIVE`
     sont exclues (power_output non représentatif depuis l'activation de la R2).
     Saison omise si corrélation <= 0.9 (seuil élevé -- même signal bruyant que
     Previ_v2, y compris après nettoyage étage 2, un lag en butée de

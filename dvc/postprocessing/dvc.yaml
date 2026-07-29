@@ -9,8 +9,8 @@ stages:
       - src/previ_r2d2/postprocessing/archive.py
       - cron/scripts/predict-archive.py
     # Tourne toutes les heures, greffé sur le même appel dvc repro que
-    # debit/debit_automate -- comme eux, la vraie donnée (nouvelle heure
-    # observée) est externe à DVC, toujours forcer.
+    # debit (dvc/preprocessing/dvc.yaml) -- comme lui, la vraie donnée
+    # (nouvelle heure observée) est externe à DVC, toujours forcer.
     always_changed: true
     outs:
       - logs/dvc_markers/predict_archive.json:
