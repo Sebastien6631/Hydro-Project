@@ -195,4 +195,5 @@ def fit_final(X: pd.DataFrame, y: pd.Series, horizon: int, mult_poids: float, ti
         "q_start": q_start,
         "q90": q90,
         "q99": q99,
+        "n_train": len(X),
     }

@@ -83,7 +83,7 @@ def test_fit_final_default_params_returns_expected_keys_and_working_model():
 
     result = fit_final(X, y, horizon=1, mult_poids=1.0, timestep="1D", n_trials=0)
 
-    assert set(result.keys()) == {"model", "top_features", "q_start", "q90", "q99"}
+    assert set(result.keys()) == {"model", "top_features", "q_start", "q90", "q99", "n_train"}
     assert result["q_start"] <= result["q90"] <= result["q99"]
     preds = result["model"].predict(X[result["top_features"]])
     assert preds.shape == (len(X),)
@@ -94,6 +94,6 @@ def test_fit_final_optuna_path_runs_end_to_end():
 
     result = fit_final(X, y, horizon=1, mult_poids=1.0, timestep="1D", n_trials=1)
 
-    assert set(result.keys()) == {"model", "top_features", "q_start", "q90", "q99"}
+    assert set(result.keys()) == {"model", "top_features", "q_start", "q90", "q99", "n_train"}
     preds = result["model"].predict(X[result["top_features"]])
     assert preds.shape == (len(X),)
