@@ -3,8 +3,6 @@ stages:
     wdir: ../..
     cmd: .venv/bin/python cron/scripts/predict-archive.py
     deps:
-      - logs/dvc_markers/train_new.json
-      - logs/dvc_markers/train_monthly.json
       - src/previ_r2d2/model/pipeline/predict_orchestrator.py
       - src/previ_r2d2/postprocessing/archive.py
       - cron/scripts/predict-archive.py
