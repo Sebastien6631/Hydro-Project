@@ -113,30 +113,41 @@ dvc pull   # données statiques des 3 centrales (config-general.json,
            # shapefiles/, centrales/<dossier>/...) depuis le remote DVC local
 ```
 
-> **Pourquoi `--no-deps`** — `pyproject.toml` déclare aussi `rasterio`,
-> `geopandas` et `pysheds` comme dépendances (délimitation du bassin
-> versant par MNT, repli utilisé seulement quand aucun shapefile connu
-> n'existe). Ils ne sont **délibérément pas installés** dans cet
-> environnement : ce repli n'est jamais exercé pour les 3 centrales déjà
-> onboardées ici (shapefile connu pour chacune), ces paquets restent en
-> import paresseux (`import` à l'intérieur des fonctions qui en ont
-> besoin, jamais au chargement du module), et ils sont lourds à installer
-> (GDAL). `pip install -e .` sans `--no-deps` essaierait de les installer.
+> **`--no-deps`** : `pyproject.toml` liste aussi `rasterio`/`geopandas`/
+> `pysheds` (délimitation du BV par MNT — jamais utilisée ici, les 3
+> centrales ont toutes un shapefile connu). On les saute volontairement
+> (lourds à installer). `.venv/bin/python` (utilisé par `dvc/*/dvc.yaml` et
+> quelques exemples ci-dessous) est un shim local qui pointe vers cet env —
+> pas indispensable si l'env conda est déjà activé, mais fonctionne alors
+> uniquement depuis un shell qui lit un shebang (Git Bash, pas `cmd.exe`).
 
-Après la création initiale, chaque nouvelle session shell nécessite juste
-`conda activate projet-mlops`. Certaines commandes de ce dépôt (les `cmd:`
-de `dvc/*/dvc.yaml`, quelques exemples de ce README) utilisent explicitement
-`.venv/bin/python` plutôt que `python` nu — c'est un shim shell (POSIX)
-créé localement, pointant vers l'interpréteur de l'env conda, utile pour
-qu'un sous-processus lancé depuis du code déjà en cours d'exécution (ex.
-`promote_model` qui appelle `dvc add`) retrouve le bon interpréteur/PATH
-sans dépendre d'un shell déjà activé. Il n'est pas nécessaire si votre env
-conda est actif : `python`/`pytest`/`dvc` nus fonctionnent identiquement.
-Sous Windows, ce shim POSIX ne peut être invoqué que depuis un shell qui
-sait interpréter un shebang (ex. Git Bash) — pas depuis `cmd.exe`/PowerShell
-natif ; c'est pour cela que `dvc repro` peut échouer dans un environnement
-purement Windows alors que lancer les scripts directement via Git Bash
-fonctionne.
+## Travail en équipe (DagsHub)
+
+Le dépôt (code + données) est partagé via [DagsHub](https://dagshub.com/Sebastien6631/Hydro-Projet)
+— un seul endroit pour le git et le remote DVC.
+
+```bash
+git clone https://dagshub.com/Sebastien6631/Hydro-Projet.git
+cd Hydro-Projet
+dvc pull   # récupère les données (config-general.json, shapefiles/,
+           # centrales/<dossier>/..., modèles entraînés)
+```
+
+**Configuration une fois par personne** : chacun crée son propre token
+DagsHub (Settings → Tokens sur dagshub.com), puis :
+```bash
+dvc remote modify dagshub --local user <votre_pseudo_dagshub>
+dvc remote modify dagshub --local password <votre_token>
+```
+(`.dvc/config.local` est gitignoré — jamais commité/partagé.)
+
+**Après un entraînement ou une nouvelle donnée** : `promote_model` fait un
+`git commit`/`git tag` **local uniquement**. Pour que l'équipe le
+récupère, il faut pousser les deux à la main :
+```bash
+git push origin <branche>
+dvc push
+```
 
 ## Configuration
 
@@ -379,7 +390,9 @@ prédiction).
 > (nouvelle version `v2`, `v3`, ... à chaque relance). C'est volontaire
 > (démonstration pédagogique du mécanisme de promotion réel), pas un mock à
 > corriger — mais soyez-en conscient avant de lancer la suite `slow` sur une
-> branche que vous ne voulez pas polluer de commits.
+> branche que vous ne voulez pas polluer de commits. Pensez aussi à
+> `git push`/`dvc push` après (cf. section « Travail en équipe » en tête de
+> fichier) pour partager le nouveau modèle.
 
 ### `predict-archive.py` — prédiction + archivage horaire
 
