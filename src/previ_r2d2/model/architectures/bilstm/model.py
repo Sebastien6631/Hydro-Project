@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import copy
 import logging
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -92,8 +93,17 @@ class BiLSTMHydro(nn.Module):
         batch_size: int = 64,
         horizon: int = 7,
         dates=None,
+        checkpoint_path: Path | None = None,
     ) -> np.ndarray:
-        """OOF (TimeSeriesSplit) puis réentraînement final 85/15 -- modifie self en place, retourne oof."""
+        """OOF (TimeSeriesSplit) puis réentraînement final 85/15 -- modifie self en place, retourne oof.
+
+        `checkpoint_path`, si fourni : sauvegarde une reprise par fold OOF
+        (oof partiel + scalers déjà calés) après chaque fold réellement
+        entraîné -- si le processus est tué en cours de route, un appel
+        ultérieur avec le même `checkpoint_path` saute les folds déjà faits.
+        Le réentraînement final (85/15) n'est PAS checkpointé (pas structuré
+        en folds) -- toujours rejoué en entier après la reprise des folds
+        OOF. Fichier supprimé automatiquement une fois `fit_oof` terminée."""
         if y.ndim == 1:
             y = y[:, np.newaxis]
         n_steps = y.shape[1]
@@ -101,12 +111,30 @@ class BiLSTMHydro(nn.Module):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         logger.info("BiLSTMHydro.fit_oof -- device=%s, folds=%d, epochs=%d, horizon=%d", device, n_splits, epochs, n_steps)
 
-        oof = np.full((len(y), n_steps), np.nan, dtype=np.float32)
+        checkpoint = None
+        if checkpoint_path is not None and checkpoint_path.exists():
+            checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
+            logger.info(
+                "BiLSTMHydro.fit_oof -- reprise depuis checkpoint (%d/%d folds déjà faits)",
+                len(checkpoint["completed_folds"]), n_splits,
+            )
+
+        if checkpoint is not None:
+            oof = checkpoint["oof"]
+            self.scalers = checkpoint["scalers"]
+            completed_folds = set(checkpoint["completed_folds"])
+        else:
+            oof = np.full((len(y), n_steps), np.nan, dtype=np.float32)
+            self.scalers = []
+            completed_folds = set()
+
         tscv = TimeSeriesSplit(n_splits=n_splits, gap=horizon)
-        self.scalers = []
         PATIENCE = 10
 
         for fold, (tr_idx, val_idx) in enumerate(tscv.split(X_seq)):
+            if fold in completed_folds:
+                logger.info("BiLSTM Fold %d/%d déjà fait (checkpoint), sauté", fold + 1, n_splits)
+                continue
             if dates is not None:
                 tr_d, val_d = dates[tr_idx], dates[val_idx]
                 logger.info(
@@ -174,6 +202,16 @@ class BiLSTMHydro(nn.Module):
                 oof[val_idx] = model_fold(val_t).cpu().numpy()
 
             logger.info("BiLSTM Fold %d/%d -- best KGE_moy=%.4f", fold + 1, n_splits, best_kge)
+
+            completed_folds.add(fold)
+            if checkpoint_path is not None:
+                torch.save(
+                    {"oof": oof, "scalers": self.scalers, "completed_folds": sorted(completed_folds)},
+                    checkpoint_path,
+                )
+
+        if checkpoint_path is not None and checkpoint_path.exists():
+            checkpoint_path.unlink()
 
         logger.info("BiLSTM final -- split 85/15, early stopping sur KGE_val (out-of-sample)")
         n_full, s, f = X_seq.shape

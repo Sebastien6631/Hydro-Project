@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import logging
 import re
+from pathlib import Path
 
+import joblib
 import numpy as np
 import pandas as pd
 import lightgbm as lgb
@@ -120,17 +122,36 @@ def fit_oof(
     timestep: str,
     n_splits: int = 5,
     n_trials: int = 30,
+    checkpoint_path: Path | None = None,
 ) -> np.ndarray:
-    """OOF (log-space) via TimeSeriesSplit ; NaN aux positions jamais validées."""
+    """OOF (log-space) via TimeSeriesSplit ; NaN aux positions jamais validées.
+
+    `checkpoint_path`, si fourni : sauvegarde une reprise par fold (oof
+    partiel + top_cols/best_params déjà figés, pour rester identiques d'un
+    fold à l'autre après reprise) après chaque fold réellement entraîné --
+    si le processus est tué en cours de route, un appel ultérieur avec le
+    même `checkpoint_path` saute les folds déjà faits au lieu de tout
+    recommencer. Le fichier est supprimé automatiquement une fois tous les
+    folds terminés."""
     optuna.logging.set_verbosity(optuna.logging.WARNING)
     y_arr = y.to_numpy()
     y_log = np.log1p(y_arr)
     y_log_series = pd.Series(y_log, index=X.index)
 
-    top_cols = select_top_features(X, y_log)
+    checkpoint = None
+    if checkpoint_path is not None and checkpoint_path.exists():
+        checkpoint = joblib.load(checkpoint_path)
+        logger.info(
+            "fit_oof: reprise depuis checkpoint (%d/%d folds déjà faits)",
+            len(checkpoint["completed_folds"]), n_splits,
+        )
+
+    top_cols = checkpoint["top_cols"] if checkpoint is not None else select_top_features(X, y_log)
     X_top = X[top_cols].reset_index(drop=True)
 
-    if n_trials > 0:
+    if checkpoint is not None:
+        best_params = checkpoint["best_params"]
+    elif n_trials > 0:
         logger.info("fit_oof: tuning Optuna (%d trials)", n_trials)
         study = optuna.create_study(direction="minimize", sampler=optuna.samplers.TPESampler(seed=42))
         study.optimize(
@@ -143,8 +164,17 @@ def fit_oof(
         best_params = dict(OOF_LGBM_PARAMS)
 
     tscv = TimeSeriesSplit(n_splits=n_splits, gap=horizon)
-    oof = np.full(len(X_top), np.nan)
+    if checkpoint is not None:
+        oof = checkpoint["oof"]
+        completed_folds = set(checkpoint["completed_folds"])
+    else:
+        oof = np.full(len(X_top), np.nan)
+        completed_folds = set()
+
     for fold_idx, (train_idx, val_idx) in enumerate(tscv.split(X_top)):
+        if fold_idx in completed_folds:
+            logger.info("fit_oof: fold %d/%d déjà fait (checkpoint), sauté", fold_idx + 1, n_splits)
+            continue
         sw = debit_weights(y_arr[train_idx], mult_poids)
         model = lgb.LGBMRegressor(**best_params)
         model.fit(
@@ -158,6 +188,21 @@ def fit_oof(
         oof[val_idx] = preds_log
         fold_kge = 1.0 - kge_loss(y_arr[val_idx], np.expm1(preds_log).clip(0))
         logger.info("fit_oof: fold %d/%d KGE=%.4f", fold_idx + 1, n_splits, fold_kge)
+
+        completed_folds.add(fold_idx)
+        if checkpoint_path is not None:
+            joblib.dump(
+                {
+                    "oof": oof,
+                    "top_cols": top_cols,
+                    "best_params": best_params,
+                    "completed_folds": sorted(completed_folds),
+                },
+                checkpoint_path,
+            )
+
+    if checkpoint_path is not None and checkpoint_path.exists():
+        checkpoint_path.unlink()
 
     return oof
 

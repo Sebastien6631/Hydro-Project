@@ -46,7 +46,10 @@ def load_or_compute_oof_lgbm(
         logger.warning(
             "OOF LGB -- cache périmé (longueur %d != %d attendu), recalcul forcé", len(cached), len(X)
         )
-    oof = fit_oof(X, y, horizon, mult_poids, timestep, n_splits=n_splits, n_trials=n_trials)
+    oof = fit_oof(
+        X, y, horizon, mult_poids, timestep, n_splits=n_splits, n_trials=n_trials,
+        checkpoint_path=output_dir / "oof_lgbm.checkpoint.pkl",
+    )
     np.save(path, oof)
     logger.info("OOF LGB -- calculé et sauvegardé (%s)", path)
     return oof
@@ -124,7 +127,10 @@ def load_or_compute_oof_lstm(
                 bilstm, X_seq, y, horizon, output_dir, n_splits, epochs, dates, batch_size, force=True
             )
         return np.load(path_oof)
-    oof = bilstm.fit_oof(X_seq, y, n_splits=n_splits, epochs=epochs, horizon=horizon, batch_size=batch_size, dates=dates)
+    oof = bilstm.fit_oof(
+        X_seq, y, n_splits=n_splits, epochs=epochs, horizon=horizon, batch_size=batch_size, dates=dates,
+        checkpoint_path=output_dir / "oof_lstm.checkpoint.pt",
+    )
     np.save(path_oof, oof)
     torch.save(bilstm.state_dict(), path_pt)
     for k, sc in enumerate(bilstm.scalers):
