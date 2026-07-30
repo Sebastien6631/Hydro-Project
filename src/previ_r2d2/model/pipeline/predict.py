@@ -40,7 +40,12 @@ def predict_test_set(
     pl_last = pred_lgbm_multi_test[:, -1]
     y_t_last = y_test[:, -1] if y_test.ndim == 2 else y_test
 
-    valid = ~np.isnan(pl_last) & ~np.isnan(pt_last) & ~np.isnan(y_t_last)
+    # valid_meta (build_meta_features) exige TOUS les pas d'horizon non-NaN,
+    # pas seulement le dernier -- sans ce & valid_meta, une ligne valide au
+    # dernier pas mais NaN à un pas intermédiaire laissait un NaN résiduel
+    # dans pred_stacking_multi (jamais rempli par build_meta_features), qui
+    # cassait ensuite tout calcul de KGE en aval (kge_stacking = null).
+    valid = ~np.isnan(pl_last) & ~np.isnan(pt_last) & ~np.isnan(y_t_last) & valid_meta
 
     y_t_m3s = np.expm1(y_t_last)
     pl_m3s = np.where(np.isnan(pl_last), np.nan, np.expm1(pl_last).clip(0))

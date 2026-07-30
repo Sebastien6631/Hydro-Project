@@ -49,3 +49,49 @@ def test_predict_test_set_returns_aligned_filtered_arrays():
     assert valid.shape == (n_seq,)
     assert valid.dtype == bool
     assert valid.sum() == len(yt_v)
+
+
+def test_predict_test_set_excludes_rows_with_nan_in_non_last_horizon_step():
+    """Bug de prod porté : `valid` (predict_test_set) ne vérifiait que le
+    dernier pas d'horizon (`pl_last`/`pt_last`), alors que `valid_meta`
+    (build_meta_features) exige TOUS les pas non-NaN. Une ligne avec un pas
+    intermédiaire NaN mais un dernier pas valide passait `valid` mais pas
+    `valid_meta` -- `pred_stacking_multi` restait NaN pour cette ligne
+    (jamais remplie par `build_meta_features`), et ce NaN se retrouvait dans
+    `stk_v` (valid=True), cassant tout calcul de KGE en aval (kge_stacking
+    = null). Fix : `valid = valid & valid_meta`."""
+    rng = np.random.default_rng(0)
+    n_seq = 30
+    horizon = 2
+
+    pred_lstm_test = rng.normal(0, 1, (n_seq, horizon)).astype(np.float32)
+    # Pas intermédiaire (t+1, colonne 0) NaN pour une seule ligne -- le
+    # dernier pas (colonne -1, t+horizon) reste valide pour cette ligne.
+    pred_lstm_test[5, 0] = np.nan
+    y_test = rng.normal(0, 1, (n_seq, horizon)).astype(np.float32)
+    lstm_idx_test = np.arange(n_seq)
+    t_last_test = np.arange(n_seq)
+
+    n_train = 100
+    index = pd.date_range("2026-01-01", periods=n_train + n_seq, freq="1h")
+    df_full_ctx = pd.DataFrame(
+        {"debit_m3s": 10 + np.cumsum(rng.normal(0, 0.1, n_train + n_seq)), "precipitation_S1": rng.uniform(0, 5, n_train + n_seq)},
+        index=index,
+    )
+    meteo_feature_cols = meteo_cols(df_full_ctx)
+
+    pred_lgbm_all = np.full(n_train + n_seq, np.nan)
+    pred_lgbm_all[:] = np.log1p(10.0)
+
+    meta = Ridge(alpha=1.0)
+    meta_n_feat = 2 * horizon + 4 + 2 + len(meteo_feature_cols)
+    meta.fit(rng.normal(0, 1, (50, meta_n_feat)), rng.normal(0, 1, (50, horizon)))
+    meta_scaler = StandardScaler().fit(rng.normal(0, 1, (50, meta_n_feat)))
+
+    _, _, _, stk_v, _, _, _, _, _, valid = predict_test_set(
+        pred_lstm_test, y_test, lstm_idx_test, t_last_test, n_train,
+        pred_lgbm_all, df_full_ctx, meta, meta_scaler, horizon, meteo_feature_cols, df_full_ctx.iloc[n_train:],
+    )
+
+    assert not valid[5], "la ligne 5 (NaN au pas intermédiaire) doit être exclue par valid_meta"
+    assert not np.isnan(stk_v).any(), "stk_v ne doit jamais contenir de NaN résiduel (casserait le KGE en aval)"
