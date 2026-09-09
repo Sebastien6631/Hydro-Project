@@ -40,7 +40,7 @@ ANNEE_R2_ACTIVE = 2026
 def cross_corr_lag(x: np.ndarray, y: np.ndarray, max_lag: int = MAX_LAG_H) -> tuple[int, float]:
     """(lag_optimal_h, correlation_max) ; lag positif = x précède y."""
     corrs = []
-    for lag in range(0, max_lag + 1):
+    for lag in range(max_lag + 1):
         if lag == 0:
             c = float(np.corrcoef(x, y)[0, 1])
         else:

@@ -48,10 +48,6 @@ DEFAULT_N_TRIALS_LGBM = 100
 DEFAULT_N_TRIALS_FINAL = 100
 
 
-def discover_dossiers() -> list[str]:
-    return sorted(p.parent.name for p in config.CENTRALES_DIR.glob("*/bv.json"))
-
-
 def load_bv_json(dossier: str) -> dict:
     with open(config.CENTRALES_DIR / dossier / "bv.json") as fh:
         return json.load(fh)
@@ -120,13 +116,13 @@ def train_one(
     return summary
 
 
-def run(dossier: str | None = None, horizon: int | None = None, force: bool = False,
+def run(dossier: str, horizon: int | None = None, force: bool = False,
         promote: bool = False) -> int:
     """Test manuel ciblé : une seule centrale/horizon (`force=True` ignore
     l'éligibilité, pour pouvoir tester même sans historique de 12 mois ou
     avant l'échéance de réentraînement). Rafraîchit data_preparation pour ce
     dossier avant d'entraîner."""
-    dossiers = [dossier] if dossier is not None else discover_dossiers()
+    dossiers = [dossier]
     horizons = [horizon] if horizon is not None else sorted(HORIZON_CFG.keys())
     summaries = []
     had_error = False

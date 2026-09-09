@@ -32,7 +32,7 @@ def test_run_skips_ineligible_dossiers_and_reports_empty_digest(tmp_path, monkey
     (tmp_path / "centrales" / "apas_G1_G4" / "bv.json").write_text("{}", encoding="utf-8")
 
     with caplog.at_level("INFO"):
-        exit_code = train_script.run()
+        exit_code = train_script.run(dossier="apas_G1_G4")
 
     assert exit_code == 0
     assert "Aucune centrale éligible" in caplog.text
@@ -75,19 +75,18 @@ def test_train_one_promotes_when_no_production_model_exists(tmp_path, monkeypatc
     assert (prod_dir / "bv.json").exists()
 
 
-def test_run_continues_after_one_dossier_fails(tmp_path, monkeypatch, caplog):
-    """Une centrale en échec (données corrompues, bug ponctuel...) ne doit
-    jamais empêcher les autres centrales éligibles ce jour-là d'être
-    entraînées -- cf. isolation par (dossier, horizon) dans `run()`."""
+def test_run_continues_after_one_horizon_fails(tmp_path, monkeypatch, caplog):
+    """Un horizon en échec (données corrompues, bug ponctuel...) ne doit jamais
+    empêcher les autres horizons du même dossier d'être entraînés -- cf.
+    isolation par (dossier, horizon) dans `run()`. Depuis le retrait des modes
+    automatisés, `run()` ne traite qu'un dossier : l'isolation se joue donc
+    entre horizons, plus entre centrales."""
     _patch_common(tmp_path, monkeypatch)
-    centrales_dir = tmp_path / "centrales"
-
-    for dossier in ("centrale_en_panne", "centrale_ok"):
-        (centrales_dir / dossier).mkdir(parents=True)
-        (centrales_dir / dossier / "bv.json").write_text("{}", encoding="utf-8")
+    (tmp_path / "centrales" / "centrale_test").mkdir(parents=True)
+    (tmp_path / "centrales" / "centrale_test" / "bv.json").write_text("{}", encoding="utf-8")
 
     def fake_train_one(dossier, horizon, **kwargs):
-        if dossier == "centrale_en_panne":
+        if horizon == 48:
             raise ValueError("données corrompues")
         return f"{dossier} h{horizon} : PROMU v1 (test)"
 
@@ -95,11 +94,11 @@ def test_run_continues_after_one_dossier_fails(tmp_path, monkeypatch, caplog):
     monkeypatch.setattr(train_script, "is_eligible_for_training", lambda d, h: True)
 
     with caplog.at_level("INFO"):
-        exit_code = train_script.run()
+        exit_code = train_script.run(dossier="centrale_test")
 
     assert exit_code == 1  # au moins un échec -> code de retour non-nul
-    assert "centrale_en_panne" in caplog.text and "ÉCHEC" in caplog.text
-    assert "centrale_ok" in caplog.text and "PROMU v1" in caplog.text
+    assert "h48 : ÉCHEC" in caplog.text
+    assert "h8 : PROMU v1" in caplog.text and "h72 : PROMU v1" in caplog.text
 
 
 
