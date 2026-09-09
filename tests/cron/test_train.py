@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+from types import SimpleNamespace
 from pathlib import Path
 
 
@@ -47,7 +48,8 @@ def test_train_one_promotes_when_no_production_model_exists(tmp_path, monkeypatc
     monkeypatch.setattr(cfg_mod, "ROOT", tmp_path)
     monkeypatch.setattr(cfg_mod, "CENTRALES_DIR", centrales_dir)
     monkeypatch.setattr(cfg_mod, "MODELS_DIR", tmp_path / "models")
-    monkeypatch.setattr(promotion.subprocess, "run", lambda *a, **k: None)
+    monkeypatch.setattr(promotion.subprocess, "run",
+                        lambda *a, **k: SimpleNamespace(stdout="", stderr="", returncode=0))
     from previ_r2d2.common import dvc_markers
 
     monkeypatch.setattr(dvc_markers, "MARKERS_DIR", tmp_path / "logs" / "dvc_markers")
@@ -63,7 +65,8 @@ def test_train_one_promotes_when_no_production_model_exists(tmp_path, monkeypatc
     (dossier_dir / "bv.json").write_text(json.dumps(bv_json), encoding="utf-8")
     write_data_preparation_csv(make_synthetic_df(), dossier_dir / "data_preparation.csv")
 
-    summary = train_script.train_one("test_centrale", 72, epochs=2, n_trials_lgbm=0, n_trials_final=0)
+    summary = train_script.train_one(
+        "test_centrale", 72, promote=True, epochs=2, n_trials_lgbm=0, n_trials_final=0)
 
     assert "PROMU v1" in summary
     prod_dir = tmp_path / "models" / "test_centrale" / "h72"
@@ -210,3 +213,66 @@ def test_run_new_dossiers_continues_after_data_preparation_failure(tmp_path, mon
     assert exit_code == 1
     assert ("ok", 8) in calls
     assert not any(d == "casse" for d, _ in calls)
+
+
+def test_train_one_does_not_promote_without_the_explicit_flag(tmp_path, monkeypatch):
+    """Par défaut, un entraînement manuel écrit un candidat et affiche la décision,
+    mais ne touche NI models/ NI git. La promotion (copie + dvc add + commit + tag)
+    ne se déclenche qu'avec --promote ; les stages DVC train_new/train_monthly le
+    passent explicitement pour garder le comportement de production."""
+    from previ_r2d2.common import config as cfg_mod
+    from previ_r2d2.model.pipeline import promotion
+    from previ_r2d2.preprocessing.data_preparation.data_preparation_csv import write_data_preparation_csv
+    from tests.model.pipeline.test_orchestrator import make_synthetic_df
+
+    centrales_dir = tmp_path / "centrales"
+    monkeypatch.setattr(cfg_mod, "ROOT", tmp_path)
+    monkeypatch.setattr(cfg_mod, "CENTRALES_DIR", centrales_dir)
+    monkeypatch.setattr(cfg_mod, "MODELS_DIR", tmp_path / "models")
+    from previ_r2d2.common import dvc_markers
+
+    monkeypatch.setattr(dvc_markers, "MARKERS_DIR", tmp_path / "logs" / "dvc_markers")
+
+    appels = []
+    monkeypatch.setattr(promotion.subprocess, "run",
+                        lambda *a, **k: appels.append(a) or SimpleNamespace(stdout="", stderr="", returncode=0))
+
+    dossier_dir = centrales_dir / "test_centrale"
+    dossier_dir.mkdir(parents=True)
+    (dossier_dir / "bv.json").write_text(json.dumps({
+        "exutoire": {"lat": 43.13, "lon": 0.92},
+        "bassin_versant": {"altitude_moyenne_m": 300.0, "surface_km2": 100.0},
+        "parametres_calage": {"K_base": 1.0, "exposition": 1.0, "kc_unit": 1.0},
+        "stations_hydrometriques": [],
+    }), encoding="utf-8")
+    write_data_preparation_csv(make_synthetic_df(), dossier_dir / "data_preparation.csv")
+
+    summary = train_script.train_one("test_centrale", 72, epochs=2, n_trials_lgbm=0, n_trials_final=0)
+
+    assert "NON PROMU" in summary and "--promote" in summary
+    assert not (tmp_path / "models" / "test_centrale" / "h72").exists()
+    assert appels == [], "aucune commande git/dvc ne doit être lancée"
+    # le candidat, lui, est bien sur disque : l'entraînement n'est pas perdu
+    assert (tmp_path / "weights" / "hybrid_candidate" / "test_centrale" / "h72" / "results.json").exists()
+
+
+def test_promote_flag_reaches_the_automated_modes(tmp_path, monkeypatch):
+    """Les stages DVC train_new/train_monthly passent --promote : sans câblage
+    jusqu'à train_one, le pipeline automatisé cesserait silencieusement de
+    promouvoir (régression invisible, aucun message d'erreur)."""
+    _patch_common(tmp_path, monkeypatch)
+    centrales_dir = tmp_path / "centrales"
+    (centrales_dir / "nouvelle").mkdir(parents=True)
+    (centrales_dir / "nouvelle" / "bv.json").write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(train_script, "history_span_days", lambda d: 400.0)
+
+    recu = []
+    monkeypatch.setattr(
+        train_script, "train_one",
+        lambda dossier, horizon, **kw: recu.append(kw.get("promote")) or f"{dossier} h{horizon} : ok",
+    )
+
+    monkeypatch.setattr("sys.argv", ["train.py", "--mode", "new", "--promote"])
+    train_script.main()
+
+    assert recu and all(v is True for v in recu), f"promote non transmis : {recu}"

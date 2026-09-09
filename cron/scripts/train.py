@@ -81,6 +81,7 @@ def refresh_data_preparation(dossier: str) -> None:
 def train_one(
     dossier: str,
     horizon: int,
+    promote: bool = False,
     epochs: int = DEFAULT_EPOCHS,
     n_trials_lgbm: int = DEFAULT_N_TRIALS_LGBM,
     n_trials_final: int = DEFAULT_N_TRIALS_FINAL,
@@ -109,10 +110,17 @@ def train_one(
     shutil.copy2(config.CENTRALES_DIR / dossier / "data_preparation.csv", candidate_dir / "data_preparation.csv")
     shutil.copy2(config.CENTRALES_DIR / dossier / "bv.json", candidate_dir / "bv.json")
 
-    if decision["decision"] in ("promote", "first_training"):
+    eligible = decision["decision"] in ("promote", "first_training")
+    if eligible and promote:
         version = promote_model(dossier, horizon, candidate_dir, results["kge_stacking"])
         summary = (
             f"{dossier} h{horizon} : PROMU v{version} "
+            f"(kge_candidat={results['kge_stacking']}, kge_prod={decision['production_kge']})"
+        )
+    elif eligible:
+        summary = (
+            f"{dossier} h{horizon} : ÉLIGIBLE mais NON PROMU (relancer avec --promote) "
+            f"-- candidat dans {candidate_dir} "
             f"(kge_candidat={results['kge_stacking']}, kge_prod={decision['production_kge']})"
         )
     else:
@@ -125,7 +133,8 @@ def train_one(
     return summary
 
 
-def run(dossier: str | None = None, horizon: int | None = None, force: bool = False) -> int:
+def run(dossier: str | None = None, horizon: int | None = None, force: bool = False,
+        promote: bool = False) -> int:
     """Test manuel ciblé : une seule centrale/horizon (`force=True` ignore
     l'éligibilité, pour pouvoir tester même sans historique de 12 mois ou
     avant l'échéance de réentraînement). Rafraîchit aussi data_preparation
@@ -146,7 +155,7 @@ def run(dossier: str | None = None, horizon: int | None = None, force: bool = Fa
             if not force and not is_eligible_for_training(d, h):
                 continue
             try:
-                summaries.append(train_one(d, h))
+                summaries.append(train_one(d, h, promote=promote))
             except Exception as exc:
                 logger.error("Échec entraînement %s h%s : %s", d, h, exc, exc_info=True)
                 summaries.append(f"{d} h{h} : ÉCHEC ({exc})")
@@ -158,7 +167,7 @@ def run(dossier: str | None = None, horizon: int | None = None, force: bool = Fa
     return 1 if had_error else 0
 
 
-def run_new_dossiers() -> int:
+def run_new_dossiers(promote: bool = False) -> int:
     """Quotidien : pour chaque dossier, uniquement les horizons SANS modèle
     en production (pas "aucun modèle sur aucun horizon" -- un dossier déjà
     entraîné sur h8 mais pas encore sur h48/h72 doit continuer de proposer
@@ -184,7 +193,7 @@ def run_new_dossiers() -> int:
             if history_span_days(d) < MIN_HISTORY_DAYS:
                 continue
             try:
-                summaries.append(train_one(d, h))
+                summaries.append(train_one(d, h, promote=promote))
             except Exception as exc:
                 logger.error("Échec entraînement %s h%s : %s", d, h, exc, exc_info=True)
                 summaries.append(f"{d} h{h} : ÉCHEC ({exc})")
@@ -196,7 +205,7 @@ def run_new_dossiers() -> int:
     return 1 if had_error else 0
 
 
-def run_monthly_retrain() -> int:
+def run_monthly_retrain(promote: bool = False) -> int:
     """Mensuel : tous les dossiers ayant déjà un modèle en production --
     réentraîne inconditionnellement (l'invocation mensuelle est l'échéance),
     train_one() compare ensuite le candidat au modèle en prod (KGE, même
@@ -217,7 +226,7 @@ def run_monthly_retrain() -> int:
             continue
         for h in trained_horizons:
             try:
-                summaries.append(train_one(d, h))
+                summaries.append(train_one(d, h, promote=promote))
             except Exception as exc:
                 logger.error("Échec entraînement %s h%s : %s", d, h, exc, exc_info=True)
                 summaries.append(f"{d} h{h} : ÉCHEC ({exc})")
@@ -238,6 +247,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--dossier", help="Test manuel ciblé sur cette centrale (ignore --mode).")
     parser.add_argument("--horizon", type=int, help="Test manuel ciblé sur cet horizon (8/48/72).")
     parser.add_argument(
+        "--promote", action="store_true",
+        help="Promouvoir le candidat s'il bat la production (copie dans models/, "
+             "dvc add + commit + tag git). Sans ce flag, l'entraînement écrit "
+             "seulement le candidat dans weights/hybrid_candidate/ et affiche la décision.",
+    )
+    parser.add_argument(
         "--force", action="store_true",
         help="Ignorer l'éligibilité (utile avec --dossier/--horizon pour un test manuel).",
     )
@@ -254,10 +269,10 @@ def main() -> int:
     )
     args = parse_args()
     if args.dossier:
-        return run(dossier=args.dossier, horizon=args.horizon, force=args.force)
+        return run(dossier=args.dossier, horizon=args.horizon, force=args.force, promote=args.promote)
     if args.mode == "new":
-        return run_new_dossiers()
-    return run_monthly_retrain()
+        return run_new_dossiers(promote=args.promote)
+    return run_monthly_retrain(promote=args.promote)
 
 
 if __name__ == "__main__":

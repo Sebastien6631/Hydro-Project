@@ -1,7 +1,7 @@
 stages:
   train_new:
     wdir: ../..
-    cmd: .venv/bin/python cron/scripts/train.py --mode new
+    cmd: .venv/bin/python cron/scripts/train.py --mode new --promote
     deps:
       - centrales/REFERENCE/config-general.json
       - logs/dvc_markers/bv.json
@@ -24,7 +24,7 @@ stages:
 
   train_monthly:
     wdir: ../..
-    cmd: .venv/bin/python cron/scripts/train.py --mode monthly
+    cmd: .venv/bin/python cron/scripts/train.py --mode monthly --promote
     deps:
       - centrales/REFERENCE/config-general.json
       - logs/dvc_markers/bv.json

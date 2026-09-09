@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import shutil
 import subprocess
+import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -57,6 +58,19 @@ def promote_model(dossier: str, horizon: int, candidate_weights_dir: Path, kge: 
     """Copie les artefacts candidat vers models/<dossier>/h<horizon>/ (nouvelle
     version active), versionnée par DVC + tag git (rollback = `git checkout
     <tag> && dvc pull`). Retourne le numéro de version."""
+    # Garde-fou : promote_model committe. Avec un arbre sale, le commit de
+    # promotion embarquerait des modifications sans rapport (et un `git add` sur
+    # le .dvc ne suffit pas à s'en prémunir si un hook ou un futur -a s'en mêle).
+    dirty = subprocess.run(
+        ["git", "status", "--porcelain"], cwd=config.ROOT,
+        capture_output=True, text=True, check=True,
+    ).stdout.strip()
+    if dirty:
+        raise RuntimeError(
+            "Arbre git non propre : promotion refusée pour ne pas committer des "
+            "modifications sans rapport :\n" + dirty
+        )
+
     prod_dir = production_dir(dossier, horizon)
     version_path = prod_dir / "version.json"
     version = 1
@@ -79,7 +93,10 @@ def promote_model(dossier: str, horizon: int, candidate_weights_dir: Path, kge: 
         }), encoding="utf-8")
 
         tag = f"{dossier}-h{horizon}-v{version}"
-        subprocess.run(["dvc", "add", str(prod_dir)], cwd=config.ROOT, check=True)
+        # `python -m dvc` et non `dvc` : sur Windows dvc.exe vit dans le Scripts        # de l'env conda, absent du PATH si l'environnement n'est pas activé --
+        # un `dvc` nu y lève FileNotFoundError (WinError 2), au message opaque.
+        # L'interpréteur courant, lui, est toujours celui qui a importé ce module.
+        subprocess.run([sys.executable, "-m", "dvc", "add", str(prod_dir)], cwd=config.ROOT, check=True)
         subprocess.run(["git", "add", f"{prod_dir}.dvc"], cwd=config.ROOT, check=True)
         subprocess.run(["git", "commit", "-m", f"model: promotion {tag}"], cwd=config.ROOT, check=True)
         subprocess.run(["git", "tag", tag], cwd=config.ROOT, check=True)

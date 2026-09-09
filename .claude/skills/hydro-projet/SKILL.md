@@ -369,11 +369,18 @@ retenu est loggé au lancement.
   peut supprimer le fichier réel puis le remplacer par un lien mort vers
   lui-même.
 
-- **`train.py` COMMITTE tout seul** — `promote_model` fait `dvc add` + `git add`
-  + `git commit` + `git tag` en local dès qu'un candidat bat la prod. Ne jamais
-  le lancer avec un arbre de travail sale : il embarquerait les modifications en
-  cours dans le commit de promotion. Pour un essai, appeler `run_training`
-  directement avec un `weights_dir` hors dépôt (aucune promotion déclenchée).
+- **La promotion est EXPLICITE depuis le 2026-09-09** — `train.py` entraîne,
+  évalue et écrit le candidat dans `weights/hybrid_candidate/`, mais ne promeut
+  QUE si `--promote` est passé. Les stages DVC `train_new`/`train_monthly` le
+  passent dans leur `cmd`, donc le pipeline automatisé garde son comportement ;
+  seuls les lancements manuels `--dossier` sont non destructifs par défaut.
+  `promote_model` refuse en plus de tourner si l'arbre git n'est pas propre
+  (sinon son commit de promotion embarquerait des modifications sans rapport).
+- **`promote_model` invoque `python -m dvc`, pas `dvc`** — sur Windows,
+  `dvc.exe` vit dans le `Scripts\` de l'env conda et n'est sur le PATH que si
+  l'environnement est activé. Un `dvc` nu lève `FileNotFoundError (WinError 2)`
+  au message opaque dès qu'on lance le script autrement (shell non activé,
+  ordonnanceur). L'interpréteur courant, lui, est toujours le bon.
 - **`git stash --include-untracked` avale les données DVC** — `centrales/<dossier>/`
   n'est ni suivi par git ni ignoré au sens strict : un stash `-u` l'emporte et le
   `pop` ne le rend pas toujours. Utiliser `git stash push` nu (fichiers suivis
@@ -399,7 +406,7 @@ python cron/scripts/onboarding-bv.py single --dossier apas_G1_G4  # no-op si bv.
 python cron/scripts/build-data-preparation.py --dossier apas_G1_G4
 python cron/scripts/train.py --dossier touzac_g2_G2 --horizon 8 --force  # entraînement réel réduit
 python cron/scripts/predict-archive.py                     # prédit + archive toutes les centrales avec modèle en prod
-python -m pytest tests/ -q                                 # suite rapide (345 passed, 2 deselected)
+python -m pytest tests/ -q                                 # suite rapide (341 passed, 2 deselected)
 python -m pytest tests/integration/ -v -m slow             # tests réels lents (entraînement + prédiction, ~30 min)
 ```
 
