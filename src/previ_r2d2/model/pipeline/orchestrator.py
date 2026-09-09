@@ -28,6 +28,7 @@ from previ_r2d2.model.pipeline.oof_cache import (
 from previ_r2d2.model.pipeline.plots import generate_training_plots
 from previ_r2d2.model.pipeline.predict import predict_test_set
 from previ_r2d2.model.pipeline.stacking_fit import fit_stacking
+from previ_r2d2.model.seeding import set_seeds
 
 HORIZON_CFG = {
     8: {"horizon_steps": 8, "timestep": "hourly", "steps_per_day": 24},
@@ -57,6 +58,11 @@ def run_training(
 
     bv_params = bv_params_from_bv_json(bv_json)
     transit_amont = transit_amont_from_bv_json(bv_json)
+
+    # Avant toute construction de modèle : sinon l'initialisation des poids
+    # BiLSTM et le mélange des batches rendent deux runs identiques
+    # incomparables (~0.14 KGE d'écart mesuré).
+    seed = set_seeds()
 
     weights_dir = weights_dir or (config.ROOT / "weights" / "hybrid" / dossier / f"h{horizon}")
     outputs_dir = config.ROOT / "outputs" / "hybrid" / dossier / f"h{horizon}"
@@ -121,6 +127,7 @@ def run_training(
     # Fenêtre d'évaluation : split_train_test est POSITIONNEL (20% de fin), donc
     # deux entraînements sur des CSV de longueurs différentes ne mesurent pas la
     # même période. Sans cette trace, comparer deux results.json n'a pas de sens.
+    results["seed"] = seed
     results["evaluation_window"] = {
         "data_rows": len(df),
         "n_train": len(df_train),

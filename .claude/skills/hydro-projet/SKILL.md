@@ -255,16 +255,15 @@ d'une tranche val pour son early stopping) mais **n'a pas été mesuré**.
 Ajouter `lgbm_result["top_features"]` aux colonnes de séquence (24 → 62-68
 colonnes) a d'abord semblé nuisible, puis s'est révélé **non concluant** :
 
-**Le BiLSTM varie de ~0.14 KGE d'un run à l'autre à configuration identique**
-(`apas` : 0.8392 / 0.8393 / 0.6973 ; `touzac` : 0.8744 / 0.8744 / 0.7408).
-Aucune graine n'est fixée (`torch.manual_seed`/`np.random.seed` absents du
-code). Les valeurs mesurées avec contexte (0.7733 / 0.6563) tombent DANS cette
-bande — l'effet du contexte est noyé dans le bruit d'entraînement.
+**Le BiLSTM variait de ~0.14 KGE d'un run à l'autre à configuration identique**
+(`apas` : 0.8392 / 0.8393 / 0.6973 ; `touzac` : 0.8744 / 0.8744 / 0.7408) —
+aucune graine n'était fixée. Les valeurs mesurées avec contexte (0.7733 /
+0.6563) tombaient DANS cette bande : l'effet était noyé dans le bruit.
 
 Retiré par YAGNI (38 colonnes d'entrée en plus pour un gain non démontré), pas
-parce qu'il serait prouvé nuisible. **Toute reprise de cette piste doit
-commencer par fixer les graines et répéter les runs**, sinon la mesure ne veut
-rien dire.
+parce qu'il serait prouvé nuisible. **Les graines sont fixées depuis
+(`model/seeding.py`), donc cette piste est désormais mesurable** — la rouvrir
+demande juste de comparer deux runs à graine identique.
 
 Deux pièges rencontrés en le portant, à connaître si on y revient :
 - Les features d'ingénierie ne sont PAS dans `data_preparation.csv` (elles
@@ -283,8 +282,13 @@ Deux pièges rencontrés en le portant, à connaître si on y revient :
   le diagnostic meta).
 - `fit_final` : fit sur 80% avec early stopping et `eval_sample_weight`
   explicite. **Effet non isolé** — jamais comparé dans une ablation dédiée.
-- `results.json` : `training_curves`, `meta_alpha`, et `evaluation_window`
-  (`data_rows`/`n_train`/`n_test`/`test_start`/`test_end`).
+- `results.json` : `training_curves`, `meta_alpha`, `seed`, et
+  `evaluation_window` (`data_rows`/`n_train`/`n_test`/`test_start`/`test_end`).
+- `model/seeding.py::set_seeds()` — appelé en tête de `run_training`, fixe
+  random/numpy/torch (CPU et CUDA), surchargeable par `PREVI_SEED`. Ne force
+  PAS `torch.use_deterministic_algorithms(True)` : les noyaux LSTM cuDNN n'ont
+  pas d'implémentation déterministe et lèveraient une erreur. Pour MESURER la
+  variance résiduelle plutôt que la subir, relancer avec `PREVI_SEED` différent.
 
 ### Piège de méthode : comparer deux `results.json`
 
@@ -292,9 +296,15 @@ Deux pièges rencontrés en le portant, à connaître si on y revient :
 de longueurs différentes ne mesurent pas la même période — et les `results.json`
 antérieurs au 2026-09-09 n'enregistrent AUCUNE trace de leur fenêtre. Ne jamais
 comparer un KGE de prod à un KGE fraîchement entraîné sans vérifier
-`evaluation_window` des deux côtés. S'y ajoute la variance BiLSTM ci-dessus :
-un écart inférieur à ~0.15 KGE sur `kge_lstm` (et ce qu'il entraîne sur
-`kge_stacking`) n'est PAS interprétable sur un run unique.
+`evaluation_window` des deux côtés. Avant le 2026-09-09 s'y ajoutait la variance BiLSTM
+ci-dessus ; depuis que les graines sont fixées, deux runs à configuration
+identique donnent un résultat identique au bit près (vérifié).
+
+En revanche, la comparaison candidat/production faite par
+`evaluate_candidate_vs_production` a TOUJOURS été rigoureuse : elle réévalue le
+modèle de prod sur le `_eval_context` du candidat, donc sur exactement les
+mêmes lignes de test. C'est la lecture manuelle des `kge_stacking` figés dans
+d'anciens `results.json` qui ne l'était pas.
 
 ## GPU (ajouté 2026-09-09)
 
@@ -407,7 +417,7 @@ python cron/scripts/onboarding-bv.py single --dossier apas_G1_G4  # no-op si bv.
 python cron/scripts/build-data-preparation.py --dossier apas_G1_G4
 python cron/scripts/train.py --dossier touzac_g2_G2 --horizon 8 --force  # entraînement réel réduit
 python cron/scripts/predict-archive.py                     # prédit + archive toutes les centrales avec modèle en prod
-python -m pytest tests/ -q                                 # suite rapide (341 passed, 2 deselected)
+python -m pytest tests/ -q                                 # suite rapide (342 passed, 2 deselected)
 python -m pytest tests/integration/ -v -m slow             # tests réels lents (entraînement + prédiction, ~30 min)
 ```
 
