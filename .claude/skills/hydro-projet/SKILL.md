@@ -95,7 +95,6 @@ Hydro-Project/
 │                                  #    SUPPRIMÉ -- lancement manuel uniquement)
 ├── dvc/
 │   ├── preprocessing/dvc.yaml    # 4 stages : debit -> onboarding_check -> bv -> data_preparation
-│   ├── model/dvc.yaml            # train_new, train_monthly (inchangé)
 │   └── postprocessing/dvc.yaml   # predict_archive (inchangé)
 ├── config/
 │   ├── centrales/<dossier>/      # vide, .gitkeep (jamais peuplé)
@@ -207,9 +206,11 @@ le dossier `meteo/`, qui n'a plus que ce fichier). Les colonnes météo de
 `data_preparation.csv` restent figées (plus de FTP pour les rallonger) ;
 seules débit/amont sont réellement rafraîchies par ce stage.
 
-`dvc/model/dvc.yaml` (train_new/train_monthly) et
-`dvc/postprocessing/dvc.yaml` (predict_archive) : structurellement
-inchangés par la simplification (leurs stages/deps/outs restaient valides
+`dvc/model/dvc.yaml` a été SUPPRIMÉ le 2026-09-09 (ses 2 seuls stages,
+train_new/train_monthly, retirés faute de cron pour les déclencher) --
+l'entraînement se lance désormais uniquement à la main via
+`cron/scripts/train.py --dossier`. `dvc/postprocessing/dvc.yaml`
+(predict_archive) reste structurellement inchangé (leurs stages/deps/outs restaient valides
 tels quels), seuls des commentaires stales mentionnant `puissance`/
 `debit_automate` y ont été corrigés.
 
@@ -371,9 +372,9 @@ retenu est loggé au lancement.
 
 - **La promotion est EXPLICITE depuis le 2026-09-09** — `train.py` entraîne,
   évalue et écrit le candidat dans `weights/hybrid_candidate/`, mais ne promeut
-  QUE si `--promote` est passé. Les stages DVC `train_new`/`train_monthly` le
-  passent dans leur `cmd`, donc le pipeline automatisé garde son comportement ;
-  seuls les lancements manuels `--dossier` sont non destructifs par défaut.
+  QUE si `--promote` est passé. `--dossier` est désormais obligatoire (les
+  modes automatisés `--mode new|monthly` ont été retirés en même temps que
+  `dvc/model/dvc.yaml`), donc AUCUN entraînement ne promeut sans geste explicite.
   `promote_model` refuse en plus de tourner si l'arbre git n'est pas propre
   (sinon son commit de promotion embarquerait des modifications sans rapport).
 - **`promote_model` invoque `python -m dvc`, pas `dvc`** — sur Windows,

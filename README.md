@@ -79,7 +79,6 @@ previ-R2-D2/
 │                                  #   lancement manuel, pas de cron/wrappers/ (retiré, cf. note en tête)
 ├── dvc/
 │   ├── preprocessing/dvc.yaml     # debit -> onboarding_check -> bv -> data_preparation (manuel)
-│   ├── model/dvc.yaml             # train_new (quotidien, nouvelles centrales), train_monthly (mensuel)
 │   └── postprocessing/dvc.yaml    # predict_archive (horaire)
 ├── outputs/                       # sorties de prédiction/entraînement (gitignored)
 ├── tests/                         # miroir de src/previ_r2d2/
@@ -170,7 +169,6 @@ avec eux.
 
 ```bash
 dvc dag dvc/preprocessing/dvc.yaml       # debit -> onboarding_check -> bv -> data_preparation (manuel)
-dvc dag dvc/model/dvc.yaml               # train_new (quotidien), train_monthly (mensuel)
 dvc dag dvc/postprocessing/dvc.yaml      # predict_archive (horaire)
 dvc repro dvc/preprocessing/dvc.yaml     # exécute tout ce pilier, dans l'ordre
 ```
@@ -182,8 +180,6 @@ debit ──> onboarding_check ──> bv
               (data_preparation : manuel uniquement,
                train.py le rafraîchit lui-même par dossier)
                                  │
-       dvc/model/dvc.yaml : train_new  ──┐
-       dvc/model/dvc.yaml : train_monthly┤
                                           │
        dvc/postprocessing/dvc.yaml : predict_archive
 ```
@@ -370,8 +366,8 @@ python cron/scripts/onboarding-check.py   # tous les raccordements pas encore on
   le même holdout que le modèle en prod, cf. `model/pipeline/promotion.py`).
 
 ```bash
-python cron/scripts/train.py --mode new       # stage DVC train_new
-python cron/scripts/train.py --mode monthly   # stage DVC train_monthly
+python cron/scripts/train.py --dossier apas_G1_G4 --horizon 8            # candidat seul, aucune promotion
+python cron/scripts/train.py --dossier apas_G1_G4 --horizon 8 --promote  # promeut si meilleur que la prod
 python cron/scripts/train.py --dossier apas_G1_G4 --horizon 8 --force   # test manuel ciblé, ignore l'éligibilité
 ```
 
@@ -500,8 +496,7 @@ Chaque paire (dossier, horizon) échoue indépendamment en mode
 python cron/scripts/maj-data.py                             # 1. importe/complète les débits (Hub'Eau)
 python cron/scripts/onboarding-check.py                     # 2. valide les raccordements pas encore onboardés
 python cron/scripts/onboarding-bv.py batch                  # 3. caractérise le BV + stations/transit (no-op si déjà fait)
-python cron/scripts/train.py --mode new                     # 4. 1er entraînement des nouvelles centrales
-python cron/scripts/train.py --mode monthly                 # 5. réentraînement mensuel (promotion conditionnelle)
+python cron/scripts/train.py --dossier apas_G1_G4 --horizon 8 --promote   # 4. entraînement + promotion conditionnelle
 python cron/scripts/predict-archive.py                      # 6. archive + prédit la nouvelle heure
 ```
 

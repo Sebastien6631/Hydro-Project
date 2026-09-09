@@ -1,29 +1,21 @@
 #!/usr/bin/env python3
-"""train — stages DVC dvc/model/dvc.yaml:train_new et :train_monthly.
+"""train — entraînement d'une centrale/horizon, lancement manuel.
 
-Deux cadences distinctes, toutes deux appelant `train_one` :
-  - `run_new_dossiers` (quotidien) : uniquement les dossiers n'ayant ENCORE
-    aucun modèle en production (nouvelle centrale) -- dès qu'ils atteignent
-    12 mois d'historique, entraînés le jour même (pas d'attente jusqu'au
-    prochain cycle mensuel).
-  - `run_monthly_retrain` (mensuel) : tous les dossiers ayant DÉJÀ un modèle
-    en production -- réentraîne inconditionnellement (l'invocation mensuelle
-    EST l'échéance), promeut le nouveau modèle seulement s'il est meilleur
-    (KGE Stacking) que le modèle en production sur le même holdout, cf.
-    promotion.py. Versionne aussi data_preparation.csv + bv.json avec le
-    modèle (même tag git) pour une reproductibilité exacte de chaque version
-    promue.
+Entraîne un candidat, le compare au modèle en production sur le MÊME holdout
+(cf. promotion.py), et affiche la décision. Ne promeut que si `--promote` est
+passé : la promotion copie le candidat dans `models/`, le versionne (dvc add)
+et crée un commit + tag git, et versionne aussi data_preparation.csv + bv.json
+avec le modèle pour une reproductibilité exacte de chaque version promue.
 
-Avant d'entraîner un dossier (dans les deux modes), rafraîchit son
-data_preparation.csv -- un seul dossier à la fois, jamais toutes les
-centrales (cf. refresh_data_preparation) : is_eligible_for_training/
-history_span_days lisent ce fichier pour l'historique 12 mois, donc sans ce
-rafraîchissement ciblé une toute nouvelle centrale ne l'aurait jamais
-(fichier jamais généré = 0 jour d'historique pour toujours, blocage
-permanent, pas juste un délai).
+Avant d'entraîner, rafraîchit le data_preparation.csv du dossier -- un seul à
+la fois, jamais toutes les centrales (cf. refresh_data_preparation) :
+is_eligible_for_training lit ce fichier pour l'historique 12 mois, donc sans ce
+rafraîchissement ciblé une toute nouvelle centrale ne l'aurait jamais (fichier
+jamais généré = 0 jour d'historique pour toujours, blocage permanent).
 
-`run(dossier=, horizon=, force=)` reste disponible pour un test manuel ciblé
-sur une seule centrale/horizon (cf. commandes de test rapide du skill).
+Les cadences automatisées (`run_new_dossiers` quotidien / `run_monthly_retrain`
+mensuel, stages DVC train_new/train_monthly) ont été retirées le 2026-09-09 :
+sans cron dans cette version, elles n'étaient jamais déclenchées.
 """
 
 from __future__ import annotations
@@ -38,12 +30,7 @@ from pathlib import Path
 
 from previ_r2d2.common import config
 from previ_r2d2.common.dvc_markers import write as write_marker
-from previ_r2d2.model.pipeline.eligibility import (
-    MIN_HISTORY_DAYS,
-    has_production_model,
-    history_span_days,
-    is_eligible_for_training,
-)
+from previ_r2d2.model.pipeline.eligibility import is_eligible_for_training
 from previ_r2d2.model.pipeline.orchestrator import HORIZON_CFG, run_training
 from previ_r2d2.model.pipeline.promotion import evaluate_candidate_vs_production, promote_model
 
@@ -137,8 +124,8 @@ def run(dossier: str | None = None, horizon: int | None = None, force: bool = Fa
         promote: bool = False) -> int:
     """Test manuel ciblé : une seule centrale/horizon (`force=True` ignore
     l'éligibilité, pour pouvoir tester même sans historique de 12 mois ou
-    avant l'échéance de réentraînement). Rafraîchit aussi data_preparation
-    pour ce dossier avant d'entraîner, comme les 2 modes automatisés."""
+    avant l'échéance de réentraînement). Rafraîchit data_preparation pour ce
+    dossier avant d'entraîner."""
     dossiers = [dossier] if dossier is not None else discover_dossiers()
     horizons = [horizon] if horizon is not None else sorted(HORIZON_CFG.keys())
     summaries = []
@@ -167,84 +154,9 @@ def run(dossier: str | None = None, horizon: int | None = None, force: bool = Fa
     return 1 if had_error else 0
 
 
-def run_new_dossiers(promote: bool = False) -> int:
-    """Quotidien : pour chaque dossier, uniquement les horizons SANS modèle
-    en production (pas "aucun modèle sur aucun horizon" -- un dossier déjà
-    entraîné sur h8 mais pas encore sur h48/h72 doit continuer de proposer
-    h48/h72 ici, sinon ces horizons ne seraient jamais entraînés une première
-    fois : run_monthly_retrain ne traite que les horizons DÉJÀ en prod).
-    Entraîne dès que 12 mois d'historique sont atteints, sans attendre le
-    cycle mensuel."""
-    horizons = sorted(HORIZON_CFG.keys())
-    summaries = []
-    had_error = False
-    for d in discover_dossiers():
-        pending_horizons = [h for h in horizons if not has_production_model(d, h)]
-        if not pending_horizons:
-            continue  # tous les horizons ont déjà un modèle -> relève uniquement du mensuel
-        try:
-            refresh_data_preparation(d)
-        except Exception as exc:
-            logger.error("Échec rafraîchissement data_preparation %s : %s", d, exc, exc_info=True)
-            summaries.append(f"{d} : ÉCHEC rafraîchissement data_preparation ({exc})")
-            had_error = True
-            continue
-        for h in pending_horizons:
-            if history_span_days(d) < MIN_HISTORY_DAYS:
-                continue
-            try:
-                summaries.append(train_one(d, h, promote=promote))
-            except Exception as exc:
-                logger.error("Échec entraînement %s h%s : %s", d, h, exc, exc_info=True)
-                summaries.append(f"{d} h{h} : ÉCHEC ({exc})")
-                had_error = True
-
-    body = "\n".join(summaries) if summaries else "Aucune nouvelle centrale à entraîner aujourd'hui."
-    logger.info(body)
-    write_marker("train_new")
-    return 1 if had_error else 0
-
-
-def run_monthly_retrain(promote: bool = False) -> int:
-    """Mensuel : tous les dossiers ayant déjà un modèle en production --
-    réentraîne inconditionnellement (l'invocation mensuelle est l'échéance),
-    train_one() compare ensuite le candidat au modèle en prod (KGE, même
-    holdout) et ne promeut que s'il est meilleur (cf. promotion.py)."""
-    horizons = sorted(HORIZON_CFG.keys())
-    summaries = []
-    had_error = False
-    for d in discover_dossiers():
-        trained_horizons = [h for h in horizons if has_production_model(d, h)]
-        if not trained_horizons:
-            continue  # jamais encore entraînée -> relève de run_new_dossiers
-        try:
-            refresh_data_preparation(d)
-        except Exception as exc:
-            logger.error("Échec rafraîchissement data_preparation %s : %s", d, exc, exc_info=True)
-            summaries.append(f"{d} : ÉCHEC rafraîchissement data_preparation ({exc})")
-            had_error = True
-            continue
-        for h in trained_horizons:
-            try:
-                summaries.append(train_one(d, h, promote=promote))
-            except Exception as exc:
-                logger.error("Échec entraînement %s h%s : %s", d, h, exc, exc_info=True)
-                summaries.append(f"{d} h{h} : ÉCHEC ({exc})")
-                had_error = True
-
-    body = "\n".join(summaries) if summaries else "Aucune centrale à réentraîner ce mois-ci."
-    logger.info(body)
-    write_marker("train_monthly")
-    return 1 if had_error else 0
-
-
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--mode", choices=["new", "monthly"],
-        help="Mode automatisé (stages DVC train_new/train_monthly).",
-    )
-    parser.add_argument("--dossier", help="Test manuel ciblé sur cette centrale (ignore --mode).")
+    parser.add_argument("--dossier", required=True, help="Centrale à entraîner.")
     parser.add_argument("--horizon", type=int, help="Test manuel ciblé sur cet horizon (8/48/72).")
     parser.add_argument(
         "--promote", action="store_true",
@@ -256,10 +168,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--force", action="store_true",
         help="Ignorer l'éligibilité (utile avec --dossier/--horizon pour un test manuel).",
     )
-    args = parser.parse_args(argv)
-    if not args.dossier and not args.mode:
-        parser.error("--mode {new,monthly} ou --dossier est requis")
-    return args
+    return parser.parse_args(argv)
 
 
 def main() -> int:
@@ -268,11 +177,7 @@ def main() -> int:
         format="[%(asctime)s] %(levelname)s | %(name)s | %(message)s",
     )
     args = parse_args()
-    if args.dossier:
-        return run(dossier=args.dossier, horizon=args.horizon, force=args.force, promote=args.promote)
-    if args.mode == "new":
-        return run_new_dossiers(promote=args.promote)
-    return run_monthly_retrain(promote=args.promote)
+    return run(dossier=args.dossier, horizon=args.horizon, force=args.force, promote=args.promote)
 
 
 if __name__ == "__main__":
