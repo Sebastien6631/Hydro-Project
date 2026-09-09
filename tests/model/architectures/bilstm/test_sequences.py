@@ -80,3 +80,4 @@ def test_build_last_window_shape_and_target_zeroed_on_future():
     assert X_last.shape == (1, seq_len + horizon, len(seq_cols) + 4 + 1)
     assert not np.isnan(X_last).any()
     assert (X_last[0, seq_len:, 0] == 0.0).all()
+

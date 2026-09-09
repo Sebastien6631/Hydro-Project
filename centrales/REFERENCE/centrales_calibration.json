@@ -1,5 +1,4 @@
 [
   {"Centrale": "apas_G1_G4", "K_base": 3.8, "exposition": 1.0, "surface": 2052, "kc_unit": 0.915, "Altitude_moyenne_BV": 1201},
-  {"Centrale": "nancy_A", "K_base": 2.5, "exposition": 0.9, "surface": 2926, "kc_unit": 1.011, "Altitude_moyenne_BV": 374},
   {"Centrale": "touzac_g2_G2", "K_base": 2.0, "exposition": 1.0, "surface": 9638, "kc_unit": 0.949, "Altitude_moyenne_BV": 690}
 ]

@@ -15,6 +15,7 @@ import torch
 from previ_r2d2.common import config
 from previ_r2d2.model.architectures.bilstm.model import BiLSTMHydro
 from previ_r2d2.model.architectures.bilstm.sequences import build_last_window, get_seq_cols
+from previ_r2d2.model.device import resolve_device
 from previ_r2d2.model.architectures.lightgbm.predict import predict_lgbm_future
 from previ_r2d2.model.architectures.stacking import build_meta_features_live, build_meteo_lag, safe_slope
 from previ_r2d2.model.features.amont import shift_amont_columns
@@ -45,10 +46,8 @@ def season_for_month(month: int) -> str:
     raise ValueError(f"Mois invalide : {month}")
 
 
-def to_display_timezone(dates: pd.DatetimeIndex, flex_strategy: str | None) -> pd.DatetimeIndex:
-    """Convertit UTC -> Europe/Paris pour l'affichage, sauf HAUTE_CHUTE (debit_automate.csv déjà en heure française malgré son suffixe Z, bug préexistant non corrigé ici -- reconvertir doublerait le décalage)."""
-    if flex_strategy == "HAUTE_CHUTE":
-        return dates
+def to_display_timezone(dates: pd.DatetimeIndex) -> pd.DatetimeIndex:
+    """Convertit UTC -> Europe/Paris pour l'affichage."""
     return dates.tz_localize("UTC").tz_convert("Europe/Paris").tz_localize(None)
 
 
@@ -141,8 +140,13 @@ def write_enchere_json(centrales_dir, dossier, rec, now, now_ts, key, points):
 
 def load_trained_models(weights_dir, horizon_steps: int, n_features: int):
     """Charge BiLSTM (poids + scalers), lgbm_final.pkl, meta.pkl, meta_scaler.pkl depuis weights_dir."""
+    # map_location="cpu" d'abord (un checkpoint entraîné sur GPU doit rester
+    # chargeable sur une machine sans GPU), PUIS déplacement vers le device
+    # effectif -- _forward_batched suit le device du modèle.
+    device = resolve_device()
     bilstm = BiLSTMHydro(n_features=n_features, horizon=horizon_steps)
     bilstm.load_state_dict(torch.load(weights_dir / "bilstm.pt", map_location="cpu"))
+    bilstm.to(device)
     bilstm.eval()
     scaler_files = sorted(weights_dir.glob("bilstm_scaler_*.pkl"))
     bilstm.scalers = [joblib.load(p) for p in scaler_files]
@@ -186,6 +190,7 @@ def run_prediction(
     df_window = load_prediction_window(dossier, horizon_steps, timestep, now, source=source)
     logger.info("%s h%s -- fenêtre chargée : %s -> %s (%d lignes)", dossier, horizon, df_window.index.min(), df_window.index.max(), len(df_window))
     df_window_seq = shift_amont_columns(df_window, transit_amont, horizon_steps)
+
     _, seq_len = get_seq_cols(transit_amont, df_window_seq, horizon_steps)
     n_features = len(seq_cols) + 5  # + hour_sin/cos, doy_sin/cos, is_fut
 
@@ -222,17 +227,10 @@ def run_prediction(
     stacking_m3s = np.expm1(pred_stacking_log).clip(0)
 
     facteur_debit = float(rec.get("facteur_debit", 1.0))
-    # decalage_h uniquement pour DEFAULT (débit mesuré à une station Hub'Eau
-    # en amont, le temps de transit jusqu'à la turbine doit être ajouté) --
-    # HAUTE_CHUTE (automate) calcule déjà le débit AU niveau de la prise
-    # d'eau/turbine (pas une station distante), donc pas de décalage
-    # temporel à appliquer (équivalent du station_hydro=False de Previ_v2,
-    # mais le split ici est flex_strategy, previ-R2-D2 n'a pas de champ
-    # station_hydro explicite).
-    decalage_h = 0
-    if rec.get("flex_strategy") != "HAUTE_CHUTE":
-        transit_centrale = transit_centrale_from_bv_json(bv_json)
-        decalage_h = round(transit_centrale.get(season_for_month(month_now), 0))
+    # Le débit est mesuré à une station Hub'Eau en amont : le temps de transit
+    # jusqu'à la turbine doit être ajouté.
+    transit_centrale = transit_centrale_from_bv_json(bv_json)
+    decalage_h = round(transit_centrale.get(season_for_month(month_now), 0))
     logger.info("%s h%s -- decalage_h=%dh (saison=%s)", dossier, horizon, decalage_h, season_for_month(month_now))
 
     step = pd.Timedelta(hours=1) if timestep == "hourly" else pd.Timedelta(days=1)
@@ -242,7 +240,7 @@ def run_prediction(
     q_entrant_m3s = stacking_m3s * facteur_debit
 
     # Affichage seul (le pipeline interne reste en UTC) : cf. to_display_timezone.
-    datetime_out = to_display_timezone(future_dates_turbine, rec.get("flex_strategy"))
+    datetime_out = to_display_timezone(future_dates_turbine)
 
     # Historique observé concaténé aux prédictions (comme Previ_v2, merged_debit
     # + type_col "observe"/"prediction") -- même conversion turbine (facteur_debit
@@ -251,7 +249,7 @@ def run_prediction(
     lookback_periods = 48 if timestep == "hourly" else 5
     hist_debit = df_window.loc[df_window.index <= now_ts, "debit_m3s"].dropna().tail(lookback_periods)
     hist_dates_turbine = pd.DatetimeIndex(hist_debit.index + pd.Timedelta(hours=decalage_h))
-    hist_dates_display = to_display_timezone(hist_dates_turbine, rec.get("flex_strategy"))
+    hist_dates_display = to_display_timezone(hist_dates_turbine)
 
     hist_df = pd.DataFrame({
         "datetime": hist_dates_display,
@@ -302,7 +300,7 @@ def run_prediction(
     # UTC, la convertir une seconde fois la décale à tort de +2h (bug
     # constaté en usage réel : generation-date affichait 18h alors que
     # l'heure de lancement réelle était 16h).
-    display_now_ts = to_display_timezone(pd.DatetimeIndex([now_ts]), rec.get("flex_strategy"))[0]
+    display_now_ts = to_display_timezone(pd.DatetimeIndex([now_ts]))[0]
 
     if horizon == 8:
         points = build_prevision_points(out_df_json, rec)

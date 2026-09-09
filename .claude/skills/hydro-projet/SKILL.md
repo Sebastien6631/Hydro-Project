@@ -2,9 +2,9 @@
 name: hydro-projet
 description: |
   Architecture, pipeline DVC et pièges connus de previ-R2-D2 — VERSION PROJET
-  DE COURS MLOps (dépôt DagsHub, 3 centrales, hors réseau de l'entreprise).
+  DE COURS MLOps (dépôt DagsHub, 2 centrales, hors réseau de l'entreprise).
   Utilise ce skill quand l'utilisateur parle de : previ-R2-D2, ce projet de
-  cours, apas_G1_G4/nancy_A/touzac_g2_G2, dvc.yaml, source=live|frozen,
+  cours, apas_G1_G4/touzac_g2_G2, dvc.yaml, source=live|frozen,
   DagsHub, promote_model, onboarding BV, entraînement/prédiction hybride
   LightGBM+BiLSTM+Stacking, ou de tout script sous cron/scripts/.
 ---
@@ -25,7 +25,7 @@ machine qui a fait la simplification).
 **Ce qui a été retiré** (inaccessible hors serveur de production) :
 - **OneGate/memorandum** — API interne de structure des centrales.
 - **automate** (rsync/SSH, `HAUTE_CHUTE`) — aucune centrale gardée ne
-  l'utilise (les 3 sont `flex_strategy: DEFAULT`).
+  l'utilise (les 2 sont `flex_strategy: DEFAULT`).
 - **hydrospot_stream** (import réel de puissance) — seule la résolution de
   mapping (`preprocessing/puissance/puissance_store.py::find_source_folder`/
   `load_puissance_mapping`) a survécu, car `preprocessing/onboarding/
@@ -39,14 +39,14 @@ machine qui a fait la simplification).
   encore fait".
 
 **Ce qui marche toujours réellement** : le débit (Hub'Eau/eaufrance, API
-publique), l'onboarding BV (idempotent, no-op pour les 3 centrales déjà
+publique), l'onboarding BV (idempotent, no-op pour les 2 centrales déjà
 onboardées), l'entraînement (LightGBM+BiLSTM+Stacking, intact), la
 prédiction (avec un nouveau mode `source="frozen"` 100% offline en plus du
 mode `"live"` historique).
 
-## Périmètre : 3 centrales seulement
+## Périmètre : 2 centrales seulement
 
-`apas_G1_G4`, `nancy_A`, `touzac_g2_G2` — toutes `flex_strategy: DEFAULT`.
+`apas_G1_G4`, `touzac_g2_G2` — toutes `flex_strategy: DEFAULT`.
 Les 10 autres centrales de la version production (bonneval_G1/G2,
 campagne_G1_G2, clairac_rd_G2_G1, counozouls_G1, la_bastide_G1_G2_G3,
 meb_G2_amont, melles, morgane_G1_G2, rebouc_G1) ont été retirées du disque
@@ -60,7 +60,7 @@ et des fichiers de config versionnés (`config-general.json`,
 Hydro-Project/
 ├── pyproject.toml               # dépendances réelles (mlflow retiré ; rasterio/geopandas/
 │                                #   pysheds PAS installés dans l'env -- lazy-import only,
-│                                #   jamais exercés pour les 3 centrales déjà onboardées)
+│                                #   jamais exercés pour les 2 centrales déjà onboardées)
 ├── run.py                        # CLI manuelle expés (--train --dossier/--all-dossiers)
 ├── models/                        # source de vérité modèles en PRODUCTION, versionné DVC+git
 │                                  #   <dossier>/h<horizon>/{version.json, meta_config.json, ...}
@@ -69,20 +69,25 @@ Hydro-Project/
 │   ├── common/                  # config.py, dvc_markers.py, onegate.py/mailer.py/
 │   │                            #   daily_report.py/mlflow_tracker.py SUPPRIMÉS
 │   ├── preprocessing/
-│   │   ├── debit/                # eaufrance.py, hubeau.py, hydro_export.py, station_store.py,
-│   │   │                         #   debit_csv.py (read_debit_csv, relocalisé depuis automate/)
+│   │   ├── debit/                # eaufrance.py, hubeau.py, hydro_export.py, hydro_update.py,
+│   │   │                         #   station_store.py, debit_csv.py (read_debit_csv)
 │   │   ├── puissance/             # puissance_store.py TRIMMÉ (mapping seulement,
 │   │   │                         #   export_puissance_csv/cleaning.py/consignes.py supprimés)
 │   │   ├── meteo/                 # nwp_reader.py SEUL (nwp_ftp.py/retention.py supprimés)
 │   │   ├── data_preparation/      # dossier_window.py (build_dossier), data_preparation_csv.py
 │   │   ├── onboarding/            # validation.py (missing_fields, DEFAULT seulement -- pas
 │   │   │                         #   de HAUTE_CHUTE, load_sync_config retiré)
-│   │   └── bv/                   # rules.py, delineation.py, bv_builder.py, transit.py
-│   │                             #   (historical_grid_points/2021-grid RETIRÉ, géométrique pur)
-│   ├── model/                     # INTACT -- features/, architectures/{lightgbm,bilstm,stacking},
-│   │                             #   pipeline/{orchestrator,predict_orchestrator,promotion,...}
+│   │   └── bv/                   # rules.py (load_rules seul -- fit_rules/save_rules retirés,
+│   │                             #     bv_rules.json est versionné), delineation.py,
+│   │                             #     bv_builder.py, transit.py (géométrique pur)
+│   ├── model/                     # features/, architectures/{lightgbm,bilstm,stacking},
+│   │                             #   pipeline/{orchestrator,predict_orchestrator,promotion,
+│   │                             #     hydraulic, split, oof_cache, stacking_fit, ...}
+│   │                             #   -- PLUS "intact" : cf. « Chantier meta-learner » ci-dessous.
+│   │                             #   model/tracking/ SUPPRIMÉ (vestige MLflow vide)
 │   ├── cli.py
 │   └── postprocessing/           # archive.py (ARCHIVE_ROOT, plus NAS_ARCHIVE_ROOT)
+│                                  #   api/ et archiving/ SUPPRIMÉS (packages vides jamais importés)
 ├── cron/scripts/                 # maj-data.py, onboarding-bv.py, onboarding-check.py,
 │                                  #   build-data-preparation.py, train.py, predict-archive.py
 │                                  #   (majdata-memo/maj-automate/maj-puissance/maj-meteo/
@@ -94,13 +99,13 @@ Hydro-Project/
 │   └── postprocessing/dvc.yaml   # predict_archive (inchangé)
 ├── config/
 │   ├── centrales/<dossier>/      # vide, .gitkeep (jamais peuplé)
-│   ├── bv_mapping.yaml           # 3 entrées (apas_G1_G4, nancy_A, touzac_g2_G2)
-│   └── puissance_mapping.yaml    # 2 entrées (nancy_A, touzac_g2_G2 -- apas via heuristique)
+│   ├── bv_mapping.yaml           # 2 entrées (apas_G1_G4, touzac_g2_G2)
+│   └── puissance_mapping.yaml    # 1 entrée (touzac_g2_G2 -- apas via heuristique)
 ├── centrales/                    # gitignoré (sauf .dvc) -- DVC-tracké, remote DagsHub
 │   ├── REFERENCE/                # config-general.json.dvc, shapefiles.dvc, bv_rules.json,
 │   │                             #   centrales_calibration.json (git-trackés directement),
 │   │                             #   files/ (gros GIS annexes, MNT France -- NI git NI DVC,
-│   │                             #   jamais utilisé : les 3 centrales ont toutes un shapefile)
+│   │                             #   jamais utilisé : les 2 centrales ont toutes un shapefile)
 │   └── <dossier>/                # <dossier>.dvc -- config-raccordement.json, bv.json, *.csv,
 │                                  #   data_preparation.csv, prevision.json, enchere.json
 └── ARCHIVE/                       # local, gitignoré (remplace l'ancien NAS_ARCHIVE_ROOT)
@@ -183,7 +188,7 @@ passe jamais `source=` explicitement.
 
 ## Onboarding BV — idempotence
 
-`bv.json` déjà calculé pour les 3 centrales (shapefile connu pour chacune,
+`bv.json` déjà calculé pour les 2 centrales (shapefile connu pour chacune,
 jamais le repli MNT). `onboarding-bv.py batch` est un no-op tant qu'un
 `bv.json` existe déjà (`--force` pour recalculer). Le repli géométrique pur
 (plus de préférence pour la grille NWP 2021, fonction retirée) s'applique
@@ -213,6 +218,120 @@ tout changement de `dvc.yaml` que `dvc.lock` ne référence plus de stage
 supprimé (piège réel rencontré : `dvc.lock` a longtemps décrit encore
 l'ancien pipeline à 7 stages après la réduction à 4, jusqu'à la revue
 finale de la simplification).
+
+## Chantier meta-learner + contexte BiLSTM (2026-09-09) — PORTÉ PUIS REPLIÉ
+
+Deux fixes du skill d'origine (`previ-r2d2`) ont été portés ici, mesurés, puis
+**retirés parce qu'ils dégradaient ou n'apportaient rien**. Ne pas les re-porter
+sans relire cette section.
+
+### Résultat 1 : calibration de l'alpha Ridge — NUISIBLE, retirée
+
+Le projet d'origine calibre `alpha` sur la tranche val (`RIDGE_ALPHA_GRID`) puis
+refit sur fit+val, au lieu de l'alpha 1.0 figé. Porté puis mesuré par une
+**ablation à modèles de base identiques** (caches OOF/LGBM partagés entre les
+deux bras, donc BiLSTM au bit près identique ; le Ridge étant une solution
+fermée, la comparaison est déterministe, pas bruitée) :
+
+| `apas_G1_G4` h8 | Stacking |
+|---|---|
+| alpha 1.0 figé, fit 100% (origine) | **0.9442** |
+| alpha calibré sur val, fit fit+val | 0.9208 |
+
+`touzac_g2_G2` : 0.9067 → 0.9029. Même sens. L'alpha retenu était en plus très
+instable d'un run à l'autre (0.1, 10.0, 30.0). Une tranche val contiguë unique
+est un signal de sélection trop faible ici. **`fit_stacking` est donc revenu au
+comportement d'origine** : scaler et Ridge fittés sur 100%, `alpha=1.0`.
+
+Ce qui a été GARDÉ de ce chantier : `training_curve` (`kge_fit`/`kge_val`/
+`kge_test`) calculé par un **modèle diagnostic jetable** fitté sur la seule
+tranche fit — les métriques restent hors échantillon sans que le modèle déployé
+change. `PerStepLGBMMeta` reste en place pour `meta_type="lgbm"` (qui a besoin
+d'une tranche val pour son early stopping) mais **n'a pas été mesuré**.
+
+### Résultat 2 : contexte long du BiLSTM — VERDICT IMPOSSIBLE, retiré
+
+Ajouter `lgbm_result["top_features"]` aux colonnes de séquence (24 → 62-68
+colonnes) a d'abord semblé nuisible, puis s'est révélé **non concluant** :
+
+**Le BiLSTM varie de ~0.14 KGE d'un run à l'autre à configuration identique**
+(`apas` : 0.8392 / 0.8393 / 0.6973 ; `touzac` : 0.8744 / 0.8744 / 0.7408).
+Aucune graine n'est fixée (`torch.manual_seed`/`np.random.seed` absents du
+code). Les valeurs mesurées avec contexte (0.7733 / 0.6563) tombent DANS cette
+bande — l'effet du contexte est noyé dans le bruit d'entraînement.
+
+Retiré par YAGNI (38 colonnes d'entrée en plus pour un gain non démontré), pas
+parce qu'il serait prouvé nuisible. **Toute reprise de cette piste doit
+commencer par fixer les graines et répéter les runs**, sinon la mesure ne veut
+rien dire.
+
+Deux pièges rencontrés en le portant, à connaître si on y revient :
+- Les features d'ingénierie ne sont PAS dans `data_preparation.csv` (elles
+  vivent dans `X_train`) : il faut les joindre côté entraînement
+  (`build_features`) ET côté prédiction (`build_future_features`, qui garde les
+  `horizon` dernières lignes même NaN). Le skill d'origine affirme « aucun
+  changement côté predict_orchestrator » — faux ici, c'est un `KeyError` garanti.
+- Le bloc futur de la fenêtre ne neutralise que `target_col`. Y laisser entrer
+  une dérivée du débit CIBLE (`debit_baseflow_7j`, `max_debit_vu`...) est une
+  FUITE : elle y encode la réponse. L'amont et ses gradients, eux, sont des
+  covariables futures légitimes (décalés du transit).
+
+### Ce qui est resté du chantier
+
+- `model/pipeline/split.py::train_val_test_indices` (utilisé par `fit_final` et
+  le diagnostic meta).
+- `fit_final` : fit sur 80% avec early stopping et `eval_sample_weight`
+  explicite. **Effet non isolé** — jamais comparé dans une ablation dédiée.
+- `results.json` : `training_curves`, `meta_alpha`, et `evaluation_window`
+  (`data_rows`/`n_train`/`n_test`/`test_start`/`test_end`).
+
+### Piège de méthode : comparer deux `results.json`
+
+`split_train_test` est POSITIONNEL (20% de fin). Deux entraînements sur des CSV
+de longueurs différentes ne mesurent pas la même période — et les `results.json`
+antérieurs au 2026-09-09 n'enregistrent AUCUNE trace de leur fenêtre. Ne jamais
+comparer un KGE de prod à un KGE fraîchement entraîné sans vérifier
+`evaluation_window` des deux côtés. S'y ajoute la variance BiLSTM ci-dessus :
+un écart inférieur à ~0.15 KGE sur `kge_lstm` (et ce qu'il entraîne sur
+`kge_stacking`) n'est PAS interprétable sur un run unique.
+
+## GPU (ajouté 2026-09-09)
+
+`previ_r2d2/model/device.py::resolve_device()` est le **seul** endroit qui
+choisit le device — entraînement (`fit_oof`) et prédiction
+(`load_trained_models`) l'appellent tous les deux, pour qu'ils ne puissent pas
+diverger. Détection auto, surchargeable par `PREVI_DEVICE=cpu|cuda` (repli sur
+CPU avec avertissement si `cuda` est demandé sans GPU utilisable). Le device
+retenu est loggé au lancement.
+
+- **Le build torch compte plus que le GPU.** `torch==2.12.1+cpu` n'a AUCUN
+  kernel CUDA (`torch.version.cuda is None`) : `torch.cuda.is_available()` est
+  `False` même avec une carte présente. Il faut réinstaller le build CUDA.
+- **Blackwell (RTX 50xx, sm_120) exige cu130.** Pour torch 2.12.1/cp311/Windows
+  seuls `cu126` et `cu130` existent ; `cu126` ne contient pas les kernels
+  sm_120 et donnerait `no kernel image is available for execution on the
+  device`. Vérifier avec `torch.cuda.get_device_capability()` (doit rendre
+  `(12, 0)`), pas seulement `is_available()`.
+  ```powershell
+  pip install --force-reinstall torch==2.12.1 --index-url https://download.pytorch.org/whl/cu130
+  ```
+- **`fit_oof` laisse le modèle sur son device d'entraînement.** Tout appel
+  direct à `model(tensor)` doit donc aligner le tenseur (sémantique torch
+  normale). Les chemins du projet sont device-aware :
+  `BiLSTMHydro._forward_batched` résout `next(self.parameters()).device` et
+  ramène le résultat sur CPU ; `predict()` et `get_attention_weights()` passent
+  par là. Sans ça : `RuntimeError: Input and parameter tensors are not at the
+  same device` — invisible tant que tout reste CPU, systématique dès qu'un GPU
+  est présent.
+- **Évaluation par batches** (`EVAL_BATCH_SIZE=512`) : évaluer plusieurs
+  milliers de séquences en un seul tenseur saturait la VRAM d'un GPU 8 Go.
+  Aucun effet sur les résultats (l'inférence est indépendante d'une séquence à
+  l'autre). Pic mesuré : ~200 Mo.
+- **Comparer un résultat CPU et un résultat GPU** demande une tolérance
+  (`rtol=1e-4, atol=1e-6`) : cuDNN/cuBLAS n'ont pas le même ordre de sommation
+  flottante que le BLAS CPU, écart ~1e-7. Normal, pas un bug.
+- **LightGBM reste 100% CPU** — jamais buildé pour GPU ici. Le GPU n'accélère
+  que le BiLSTM.
 
 ## Pièges connus (toujours valides après simplification)
 
@@ -250,17 +369,38 @@ finale de la simplification).
   peut supprimer le fichier réel puis le remplacer par un lien mort vers
   lui-même.
 
+- **`train.py` COMMITTE tout seul** — `promote_model` fait `dvc add` + `git add`
+  + `git commit` + `git tag` en local dès qu'un candidat bat la prod. Ne jamais
+  le lancer avec un arbre de travail sale : il embarquerait les modifications en
+  cours dans le commit de promotion. Pour un essai, appeler `run_training`
+  directement avec un `weights_dir` hors dépôt (aucune promotion déclenchée).
+- **`git stash --include-untracked` avale les données DVC** — `centrales/<dossier>/`
+  n'est ni suivi par git ni ignoré au sens strict : un stash `-u` l'emporte et le
+  `pop` ne le rend pas toujours. Utiliser `git stash push` nu (fichiers suivis
+  seulement) ; réparer avec `git checkout -- centrales/<d>.dvc && dvc pull
+  centrales/<d>.dvc`.
+- **Comparer un KGE sur une tranche quasi constante** — `np.std(...) == 0` est un
+  test trop strict après `expm1` : une cible constante laisse un std résiduel
+  d'arrondi (~1e-15) qui passe le test et produit un KGE fini de l'ordre de
+  −1e6, assez pour piloter une calibration et fuiter dans `results.json`.
+  Utiliser un seuil RELATIF (`std <= 1e-9 * max(1, |moyenne|)`), cf.
+  `stacking_fit._kge_m3s`.
+- **`.venv/bin/python` n'existe pas sur un clone frais** — c'est un shim créé à
+  la main, pas versionné. Sur une machine neuve, activer l'env conda
+  (`conda activate projet-mlops`) et utiliser `python` tout court ; les chemins
+  `.venv/bin/python` des `dvc.yaml` supposent que le shim a été recréé.
+
 ## Commandes de test rapide
 
 ```bash
-.venv/bin/python cron/scripts/maj-data.py --dossier apas_G1_G4      # test ciblé débit (Hub'Eau réel)
-.venv/bin/python cron/scripts/onboarding-check.py                   # tous les raccordements (pas de --dossier)
-.venv/bin/python cron/scripts/onboarding-bv.py single --dossier apas_G1_G4  # no-op si bv.json déjà présent
-.venv/bin/python cron/scripts/build-data-preparation.py --dossier apas_G1_G4
-.venv/bin/python cron/scripts/train.py --dossier touzac_g2_G2 --horizon 8 --force  # entraînement réel réduit
-.venv/bin/python cron/scripts/predict-archive.py                     # prédit + archive toutes les centrales avec modèle en prod
-.venv/bin/python -m pytest tests/ -q                                 # suite rapide (315 passed, 2 deselected)
-.venv/bin/python -m pytest tests/integration/ -v -m slow             # tests réels lents (entraînement + prédiction, ~30 min)
+python cron/scripts/maj-data.py --dossier apas_G1_G4      # test ciblé débit (Hub'Eau réel)
+python cron/scripts/onboarding-check.py                   # tous les raccordements (pas de --dossier)
+python cron/scripts/onboarding-bv.py single --dossier apas_G1_G4  # no-op si bv.json déjà présent
+python cron/scripts/build-data-preparation.py --dossier apas_G1_G4
+python cron/scripts/train.py --dossier touzac_g2_G2 --horizon 8 --force  # entraînement réel réduit
+python cron/scripts/predict-archive.py                     # prédit + archive toutes les centrales avec modèle en prod
+python -m pytest tests/ -q                                 # suite rapide (345 passed, 2 deselected)
+python -m pytest tests/integration/ -v -m slow             # tests réels lents (entraînement + prédiction, ~30 min)
 ```
 
 `onboarding-check.py`/`predict-archive.py` n'ont **aucun** flag `--dossier`

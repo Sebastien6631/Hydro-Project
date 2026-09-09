@@ -5,7 +5,6 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import pytest
 
 from previ_r2d2.common import config
 from previ_r2d2.model.pipeline.orchestrator import run_training
@@ -13,20 +12,13 @@ from previ_r2d2.model.pipeline.predict_orchestrator import run_prediction, to_di
 from previ_r2d2.preprocessing.data_preparation.data_preparation_csv import write_data_preparation_csv
 
 
-def test_to_display_timezone_converts_utc_to_paris_for_default():
+def test_to_display_timezone_converts_utc_to_paris():
     dates = pd.DatetimeIndex(["2026-01-15 10:00:00", "2026-07-15 10:00:00"])
 
-    result = to_display_timezone(dates, "DEFAULT")
+    result = to_display_timezone(dates)
 
     assert list(result) == [pd.Timestamp("2026-01-15 11:00:00"), pd.Timestamp("2026-07-15 12:00:00")]
 
-
-def test_to_display_timezone_leaves_haute_chute_unchanged():
-    dates = pd.DatetimeIndex(["2026-01-15 10:00:00", "2026-07-15 10:00:00"])
-
-    result = to_display_timezone(dates, "HAUTE_CHUTE")
-
-    assert list(result) == list(dates)
 
 
 def make_synthetic_df(n_days=400, freq="1D", noise_std=0.2):
@@ -116,66 +108,6 @@ def test_run_prediction_end_to_end_produces_csv(tmp_path, monkeypatch):
     assert len(result["q_entrant_m3s"]) == 3
     assert Path(result["csv_path"]).exists()
 
-
-def test_run_prediction_haute_chute_skips_decalage(tmp_path, monkeypatch):
-    """HAUTE_CHUTE (automate) calcule déjà le débit à la turbine -- pas de décalage temporel, contrairement à DEFAULT."""
-    centrales_dir = tmp_path / "centrales"
-    reference_dir = centrales_dir / "REFERENCE"
-    nas_data_root = tmp_path / "nas_data"
-    nas_meteo = tmp_path / "nas_meteo"
-    monkeypatch.setattr(config, "CENTRALES_DIR", centrales_dir)
-    monkeypatch.setattr(config, "REFERENCE_DIR", reference_dir)
-    monkeypatch.setattr(config, "NAS_DATA_ROOT", nas_data_root)
-    monkeypatch.setattr(config, "NAS_METEO", nas_meteo)
-    monkeypatch.setattr(config, "ROOT", tmp_path)
-    models_dir = tmp_path / "models"
-    monkeypatch.setattr(config, "MODELS_DIR", models_dir)
-    reference_dir.mkdir(parents=True)
-
-    df = make_synthetic_df()
-    write_data_preparation_csv(df, centrales_dir / "test_centrale" / "data_preparation.csv")
-
-    exutoire = {"lat": 43.13, "lon": 0.92}
-    bv_json = {
-        "bassin_versant": {"altitude_moyenne_m": 300.0, "surface_km2": 100.0},
-        "parametres_calage": {"K_base": 1.0, "exposition": 1.0, "kc_unit": 1.0},
-        "stations_hydrometriques": [],
-        "transit_vers_centrale_h": {"DJF": 2, "MAM": 2, "JJA": 2, "SON": 2},
-    }
-    (centrales_dir / "test_centrale" / "bv.json").write_text(json.dumps(bv_json), encoding="utf-8")
-
-    records = [{"dossier": "test_centrale", "flex_strategy": "HAUTE_CHUTE", "facteur_debit": 1.0}]
-    (reference_dir / "config-general.json").write_text(json.dumps(records), encoding="utf-8")
-
-    run_training(
-        "test_centrale", 72, exutoire, bv_json,
-        meta_type="ridge", epochs=2, n_trials_lgbm=0, n_trials_final=0,
-        weights_dir=models_dir / "test_centrale" / "h72",
-    )
-
-    import previ_r2d2.model.pipeline.predict_orchestrator as po
-
-    now = df.index[-1]
-
-    def fake_load_prediction_window(dossier, horizon_steps, timestep, now, lookback_days=90, **kwargs):
-        future_index = pd.date_range(now + pd.Timedelta(days=1), periods=horizon_steps, freq="1D")
-        future = pd.DataFrame(
-            {
-                "debit_m3s": np.nan,
-                "latitude_S1": 43.1, "longitude_S1": 0.9,
-                "temperature_S1": 280.0, "precipitation_S1": 1.0, "niveau0_S1": 1500.0,
-            },
-            index=future_index,
-        )
-        return pd.concat([df, future])
-
-    monkeypatch.setattr(po, "load_prediction_window", fake_load_prediction_window)
-
-    result = po.run_prediction("test_centrale", 72, exutoire, bv_json, now)
-
-    csv_data = pd.read_csv(result["csv_path"])
-    first_prediction = csv_data[csv_data["source"] == "prediction"].iloc[0]
-    assert pd.Timestamp(first_prediction["datetime"]) == now + pd.Timedelta(days=1)
 
 
 def test_run_prediction_h8_writes_prevision_json(tmp_path, monkeypatch):

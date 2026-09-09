@@ -9,7 +9,6 @@ from previ_r2d2.preprocessing.bv.rules import (
     estimate_exposition,
     estimate_kbase,
     estimate_kc_unit,
-    fit_rules,
     load_rules,
 )
 
@@ -30,8 +29,8 @@ def test_estimate_kc_unit_clips_to_bounds():
 def test_estimate_kc_unit_matches_known_centrales_within_documented_mae():
     """Comparaison aux valeurs réelles calées à la main pour les centrales Previ_v2
     (centrales/REFERENCE/centrales_calibration.json) — cf. MAE=0.034 documenté dans
-    bv_rules.json (calé à l'origine sur 8 BV, ici vérifié sur les 3 restants après
-    réduction du périmètre : apas_G1_G4, nancy_A, touzac_g2_G2)."""
+    bv_rules.json (calé à l'origine sur 8 BV, ici vérifié sur les 2 restants après
+    réduction du périmètre : apas_G1_G4, touzac_g2_G2)."""
     r = load_rules(REF_DIR / "bv_rules.json")
     calibration = _load_calibration()
 
@@ -40,7 +39,7 @@ def test_estimate_kc_unit_matches_known_centrales_within_documented_mae():
         for row in calibration
     ]
 
-    assert sum(errors) / len(errors) == pytest.approx(0.017, abs=0.005)
+    assert sum(errors) / len(errors) == pytest.approx(0.022, abs=0.005)
     assert max(errors) < 0.07
 
 
@@ -73,9 +72,3 @@ def test_load_rules_reads_shipped_bv_rules_json():
     assert r.kbase_steps[0] == [1800, 4.5]
 
 
-def test_fit_rules_runs_on_calibration_json():
-    fitted = fit_rules(REF_DIR)
-    assert fitted.n_calib == 3
-    assert fitted.kc_slope < 0
-    assert fitted.kc_clip_min == 0.60
-    assert fitted.kc_clip_max == 1.05

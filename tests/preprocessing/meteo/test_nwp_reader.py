@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from previ_r2d2.preprocessing.meteo.nwp_reader import grid_points, parse_nwp_file, read_points
+from previ_r2d2.preprocessing.meteo.nwp_reader import parse_nwp_file, read_points
 
 
 def test_parse_nwp_file_renames_columns_and_keeps_raw_units(tmp_path):
@@ -42,20 +42,6 @@ def test_parse_nwp_file_accepts_old_2021_2024_header_case_and_extra_column(tmp_p
     assert row["niveau0"] == 2195.48
     assert row["flow_date"] == pd.Timestamp("2022-03-05 14:00:00")
 
-
-def test_grid_points_returns_set_of_lat_lon_tuples(tmp_path):
-    path = tmp_path / "raw.csv"
-    path.write_text(
-        "latitude,longitude,run_date,flow_date,2T (2 metre temperature),"
-        "tp (precipitation),deg0l (zero degree level)\n"
-        "42.6,1.8,2026-07-08,2026-07-08 14:00:00,294.45,0.0038,2195.48\n"
-        "42.6,2.1,2026-07-08,2026-07-08 14:00:00,298.06,0.0038,2526.10\n",
-        encoding="utf-8",
-    )
-
-    result = grid_points(path)
-
-    assert result == {(42.6, 1.8), (42.6, 2.1)}
 
 
 def test_read_points_extracts_only_requested_grid_points(tmp_path):

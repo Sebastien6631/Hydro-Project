@@ -20,8 +20,13 @@ from sklearn.preprocessing import StandardScaler
 from torch.utils.data import DataLoader, TensorDataset
 
 from previ_r2d2.model.architectures.bilstm.metrics import kge_loss_torch, kge_numpy
+from previ_r2d2.model.device import resolve_device
 
 logger = logging.getLogger(__name__)
+
+# Batch d'inférence : borne la VRAM utilisée pendant l'évaluation, sans effet
+# sur les résultats (l'inférence est indépendante d'une séquence à l'autre).
+EVAL_BATCH_SIZE = 512
 
 
 class BiLSTMHydro(nn.Module):
@@ -70,18 +75,39 @@ class BiLSTMHydro(nn.Module):
     def get_attention_weights(self, x: torch.Tensor) -> np.ndarray:
         """Poids d'attention (batch, seq_len) sans gradient ; x doit déjà être normalisé via self.scalers[fold]."""
         self.eval()
+        x = x.to(next(self.parameters()).device)
         with torch.no_grad():
             out, _ = self.lstm(x)
             weights = F.softmax(self.attn_w(out), dim=1)
         return weights.squeeze(-1).cpu().numpy()
 
+    def _forward_batched(self, X: np.ndarray, batch_size: int = EVAL_BATCH_SIZE) -> np.ndarray:
+        """Inférence sans gradient, par batches, SUR LE DEVICE DU MODÈLE.
+
+        Deux raisons, toutes deux découvertes sur GPU réel :
+        - le device est résolu ici (`next(self.parameters()).device`) : un tenseur
+          construit sur CPU passé à un modèle resté sur `cuda` après `fit_oof`
+          lève `RuntimeError: Input and parameter tensors are not at the same
+          device` -- invisible tant que tout reste CPU ;
+        - par batches : évaluer plusieurs milliers de séquences en un seul tenseur
+          sature la VRAM d'un GPU grand public (8 Go).
+        """
+        self.eval()
+        device = next(self.parameters()).device
+        outs = []
+        with torch.no_grad():
+            for i in range(0, len(X), batch_size):
+                xb = torch.as_tensor(np.asarray(X[i : i + batch_size]), dtype=torch.float32, device=device)
+                outs.append(self(xb).cpu().numpy())
+        if not outs:
+            return np.empty((0, self.horizon), dtype=np.float32)
+        return np.concatenate(outs, axis=0)
+
     def predict(self, X_seq: np.ndarray) -> np.ndarray:
         """Prédit en batch sur des séquences déjà construites, normalisées avec le dernier scaler OOF."""
-        self.eval()
         n, s, f = X_seq.shape
         X_norm = self.scalers[-1].transform(X_seq.reshape(-1, f)).reshape(n, s, f) if self.scalers else X_seq
-        with torch.no_grad():
-            return self(torch.tensor(X_norm, dtype=torch.float32)).numpy()
+        return self._forward_batched(X_norm)
 
     def fit_oof(
         self,
@@ -108,7 +134,7 @@ class BiLSTMHydro(nn.Module):
             y = y[:, np.newaxis]
         n_steps = y.shape[1]
 
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        device = resolve_device()
         logger.info("BiLSTMHydro.fit_oof -- device=%s, folds=%d, epochs=%d, horizon=%d", device, n_splits, epochs, n_steps)
 
         checkpoint = None
@@ -172,10 +198,7 @@ class BiLSTMHydro(nn.Module):
                     nn.utils.clip_grad_norm_(model_fold.parameters(), 1.0)
                     optimizer.step()
 
-                model_fold.eval()
-                with torch.no_grad():
-                    val_t = torch.tensor(X_val_n, dtype=torch.float32).to(device)
-                    preds = model_fold(val_t).cpu().numpy()
+                preds = model_fold._forward_batched(X_val_n)
 
                 kge_steps = [kge_numpy(np.expm1(y_val[:, k]), np.expm1(preds[:, k])) for k in range(n_steps)]
                 val_kge = float(np.mean(kge_steps))
@@ -196,10 +219,7 @@ class BiLSTMHydro(nn.Module):
                         break
 
             model_fold.load_state_dict(best_state)
-            model_fold.eval()
-            with torch.no_grad():
-                val_t = torch.tensor(X_val_n, dtype=torch.float32).to(device)
-                oof[val_idx] = model_fold(val_t).cpu().numpy()
+            oof[val_idx] = model_fold._forward_batched(X_val_n)
 
             logger.info("BiLSTM Fold %d/%d -- best KGE_moy=%.4f", fold + 1, n_splits, best_kge)
 
@@ -227,7 +247,6 @@ class BiLSTMHydro(nn.Module):
 
         fin_tr_ds = TensorDataset(torch.tensor(X_fin_tr, dtype=torch.float32), torch.tensor(y_fin_tr, dtype=torch.float32))
         fin_tr_dl = DataLoader(fin_tr_ds, batch_size=batch_size, shuffle=True)
-        X_fin_val_t = torch.tensor(X_fin_val, dtype=torch.float32)
 
         self.to(device)
         optimizer_full = torch.optim.Adam(self.parameters(), lr=lr)
@@ -245,9 +264,7 @@ class BiLSTMHydro(nn.Module):
                 nn.utils.clip_grad_norm_(self.parameters(), 1.0)
                 optimizer_full.step()
 
-            self.eval()
-            with torch.no_grad():
-                preds_val = self(X_fin_val_t.to(device)).cpu().numpy()
+            preds_val = self._forward_batched(X_fin_val)
             kge_steps_val = [kge_numpy(np.expm1(y_fin_val[:, k]), np.expm1(preds_val[:, k])) for k in range(n_steps)]
             kge_val = float(np.mean(kge_steps_val))
             scheduler_full.step(-kge_val)

@@ -1,11 +1,7 @@
 # Correspondance dossier centrale (previ-R2-D2) -> nom de dossier hydrospot_stream
 # (PREVI_PUISSANCE_SOURCE_ROOT). Recours explicite pour les cas où l'heuristique
 # mot-clé+groupe de find_source_folder() ne peut pas fonctionner seule :
-#   - nancy_A            : seule centrale dont le groupe OneGate est nommé "A"
-#                          (convention différente du "_G1" du dossier réel) ;
-#                          Nancy_rueDaum_G1 est le seul dossier Nancy existant.
 #   - touzac_g2_G2       : le mot-clé tiré de centrale="touzac_g2" ne matche pas
 #                          "Touzac_Baque_G2" (infixe "_baque") — match évident
 #                          par ailleurs (nom, groupe G2 exact).
-nancy_A: Nancy_rueDaum_G1
 touzac_g2_G2: Touzac_Baque_G2

@@ -6,7 +6,6 @@ ce sous-projet, puis l'orchestration d'entraînement ultérieure)."""
 from __future__ import annotations
 
 import numpy as np
-import pandas as pd
 
 EPS = 1e-6
 
@@ -90,13 +89,3 @@ def debit_weights(
         ),
     )
 
-
-def postprocess_debit(
-    y_pred: np.ndarray, q_start: float, q90: float, q99: float, span: int = 8
-) -> np.ndarray:
-    """Lisse les prédictions en régime normal (miroir de debit_weights, cohérence entraînement/inférence)."""
-    y = np.array(y_pred, dtype=float)
-    y_smooth = pd.Series(y).ewm(span=span, min_periods=1).mean().values
-    blend = np.clip(1.0 - (y - q_start) / (q90 - q_start + EPS), 0.0, 1.0)
-    blend = np.where(y > q99, 0.0, blend)
-    return (blend * y_smooth + (1.0 - blend) * y).clip(0)

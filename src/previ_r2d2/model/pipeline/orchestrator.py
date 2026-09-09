@@ -5,6 +5,7 @@ MLflow/DVCLive (mlflow_run_id=None) -- portée réduite actée."""
 
 from __future__ import annotations
 
+
 from pathlib import Path
 
 import pandas as pd
@@ -78,6 +79,7 @@ def run_training(
 
     df_train_seq = shift_amont_columns(df_train, transit_amont, horizon_steps)
     df_test_seq = shift_amont_columns(df_test, transit_amont, horizon_steps)
+
     seq_cols, seq_len = get_seq_cols(transit_amont, df_train_seq, horizon_steps)
     X_seq_train, y_seq_train, lstm_idx_train, t_last_train = build_sequences(df_train_seq, seq_len, horizon_steps, seq_cols)
     X_seq_test, y_test, lstm_idx_test, t_last_test = build_sequences(df_test_seq, seq_len, horizon_steps, seq_cols)
@@ -113,6 +115,25 @@ def run_training(
         y_test, pred_lgbm_multi_test, pred_lstm_test, pred_stacking_multi,
         stacking_result["meta"], horizon_steps, meteo_feature_cols,
     )
+
+    # Diagnostic honnête fit/val/test (jamais utilisé pour une sélection auto ici,
+    # meta_type est figé par l'appelant) -- permet de comparer deux entraînements.
+    # Fenêtre d'évaluation : split_train_test est POSITIONNEL (20% de fin), donc
+    # deux entraînements sur des CSV de longueurs différentes ne mesurent pas la
+    # même période. Sans cette trace, comparer deux results.json n'a pas de sens.
+    results["evaluation_window"] = {
+        "data_rows": len(df),
+        "n_train": len(df_train),
+        "n_test": len(df_test),
+        "test_start": str(df_test.index.min()),
+        "test_end": str(df_test.index.max()),
+    }
+
+    results["training_curves"] = {
+        "lgbm": lgbm_result.get("training_curve"),
+        "meta": stacking_result.get("training_curve"),
+    }
+    results["meta_alpha"] = getattr(stacking_result["meta"], "alpha", None)
 
     meta_config = {
         "centrale": dossier,

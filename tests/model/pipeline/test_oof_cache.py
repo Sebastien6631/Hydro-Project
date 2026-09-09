@@ -20,6 +20,20 @@ def make_lgbm_fixture(n=150):
     return X, y
 
 
+def _forward_cpu(model, X):
+    """Forward sur CPU, quel que soit le device où le modèle a fini.
+
+    `fit_oof` laisse le modèle sur son device d'entraînement (cuda si GPU) alors
+    que le rechargement depuis le cache se fait sur CPU : comparer les deux tels
+    quels introduit l'écart d'arrondi cuDNN vs BLAS (~1e-5 absolu, 2e-4 relatif
+    mesuré) et rend le test instable une fois sur deux. On force donc le même
+    device des deux côtés -- ce que ce test vérifie, ce sont les POIDS rechargés,
+    pas le backend qui les exécute."""
+    model.cpu().eval()
+    with torch.no_grad():
+        return model(torch.tensor(X, dtype=torch.float32)).numpy()
+
+
 def test_load_or_compute_oof_lgbm_caches_to_disk_and_reuses_on_second_call(tmp_path):
     X, y = make_lgbm_fixture()
 
@@ -38,7 +52,7 @@ def test_load_or_compute_lgbm_final_caches_dict_to_disk(tmp_path):
     result1 = load_or_compute_lgbm_final(X, y, horizon=1, mult_poids=1.0, timestep="1D", output_dir=tmp_path, n_trials=0)
 
     assert (tmp_path / "lgbm_final.pkl").exists()
-    assert set(result1.keys()) == {"model", "top_features", "q_start", "q90", "q99", "n_train"}
+    assert set(result1.keys()) == {"model", "top_features", "q_start", "q90", "q99", "n_train", "training_curve"}
     assert result1["n_train"] == len(X)
 
     result2 = load_or_compute_lgbm_final(X, y, horizon=1, mult_poids=1.0, timestep="1D", output_dir=tmp_path, n_trials=0)
@@ -91,15 +105,17 @@ def test_load_or_compute_oof_lstm_cache_hit_reloads_weights_not_random(tmp_path)
 
     model = BiLSTMHydro(n_features=n_features, horizon=horizon, hidden_size=4, n_layers=1)
     load_or_compute_oof_lstm(model, X_seq, y, horizon=horizon, output_dir=tmp_path, n_splits=2, epochs=2, batch_size=32)
-    preds_before = model(torch.tensor(X_seq[:5], dtype=torch.float32)).detach().numpy()
+    preds_before = _forward_cpu(model, X_seq[:5])
 
     # nouvelle instance fraîche (poids aléatoires) -> le cache-hit doit recharger les VRAIS poids entraînés.
     model2 = BiLSTMHydro(n_features=n_features, horizon=horizon, hidden_size=4, n_layers=1)
     oof = load_or_compute_oof_lstm(model2, X_seq, y, horizon=horizon, output_dir=tmp_path, n_splits=2, epochs=2, batch_size=32)
-    preds_after = model2(torch.tensor(X_seq[:5], dtype=torch.float32)).detach().numpy()
+    preds_after = _forward_cpu(model2, X_seq[:5])
 
     assert oof.shape == (300, 2)
     assert len(model2.scalers) == 3  # 2 folds + 1 final
+    # Comparaison stricte : les deux forwards tournent sur CPU (cf. _forward_cpu),
+    # des poids identiques doivent donner des sorties identiques au bit près.
     np.testing.assert_allclose(preds_before, preds_after)
 
 

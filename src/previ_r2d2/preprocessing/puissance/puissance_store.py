@@ -38,7 +38,7 @@ def load_puissance_mapping(path: Path) -> dict:
     Recours explicite pour les cas où l'heuristique mot-clé+groupe ne peut pas
     fonctionner : plusieurs groupes previ-R2-D2 partagent un seul dossier
     hydrospot_stream (ex. la_bastide_G1_G2_G3 -> LabastideSalat_Village_G1),
-    ou la convention de groupe diffère (ex. nancy_A -> Nancy_rueDaum_G1).
+    ou le mot-clé du dossier ne matche pas (ex. touzac_g2_G2 -> Touzac_Baque_G2).
     """
     if not path.exists():
         return {}

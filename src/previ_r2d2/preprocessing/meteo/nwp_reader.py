@@ -32,11 +32,6 @@ def parse_nwp_file(path: Path) -> pd.DataFrame:
     return df.set_index(["latitude", "longitude"])
 
 
-def grid_points(path: Path) -> set[tuple[float, float]]:
-    """Ensemble des points de grille (lat, lon) présents dans un fichier NWP brut."""
-    return set(parse_nwp_file(path).index)
-
-
 def read_points(
     racine: Path, points: list[dict], start: pd.Timestamp, end: pd.Timestamp
 ) -> pd.DataFrame:

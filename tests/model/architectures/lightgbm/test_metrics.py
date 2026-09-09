@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from previ_r2d2.model.architectures.lightgbm.metrics import kge_loss, debit_quantiles
-from previ_r2d2.model.architectures.lightgbm.metrics import debit_weights, postprocess_debit
+from previ_r2d2.model.architectures.lightgbm.metrics import debit_weights
 
 
 def test_kge_loss_normal_variance_matches_hand_computed_value():
@@ -89,31 +89,4 @@ def test_debit_weights_matches_hand_computed_values_across_all_zones():
     assert weights[99] == pytest.approx(2.3333331836887496)
 
 
-def test_postprocess_debit_matches_hand_computed_values_across_all_zones():
-    y_pred = np.arange(1.0, 101.0)
-    q_start, q90, q99 = 50.5, 90.1, 99.01
 
-    result = postprocess_debit(y_pred, q_start, q90, q99)
-
-    # index 9 -> y=10 (blend=1.0, lissage EWM complet)
-    assert result[9] == pytest.approx(7.381548051703096)
-    # index 69 -> y=70 (transition linéaire, blend intermédiaire)
-    assert result[69] == pytest.approx(68.22348561870325)
-    # index 94 -> y=95 (hautes eaux, blend=0, prédiction brute)
-    assert result[94] == pytest.approx(95.0)
-    # index 99 -> y=100 (au-dessus de q99, coupure dure, blend=0)
-    assert result[99] == pytest.approx(100.0)
-
-
-def test_postprocess_debit_hard_cutoff_applies_even_when_q99_below_q90():
-    # Cas contrivé : q99 < q90 (n'arrive jamais via debit_quantiles en usage
-    # normal, qui garantit q99 >= q90, mais postprocess_debit ne vérifie pas
-    # cet invariant -- ce test prouve que la coupure dure a un effet réel
-    # dans ce cas limite, plutôt que d'être du code mort).
-    q_start, q90, q99 = 10.0, 50.0, 30.0
-    y_pred = np.arange(1.0, 51.0)
-
-    result = postprocess_debit(y_pred, q_start, q90, q99)
-
-    # idx 39 -> y=40, > q99=30 -> coupure dure : blend=0, résultat = y brut.
-    assert result[39] == pytest.approx(40.0)

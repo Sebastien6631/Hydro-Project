@@ -40,7 +40,6 @@ from previ_r2d2.model.pipeline.predict_orchestrator import (
     season_for_month,
     to_display_timezone,
 )
-from previ_r2d2.model.pipeline.predict_window import find_record
 from previ_r2d2.preprocessing.data_preparation.data_preparation_csv import read_data_preparation_csv
 
 _TRAIN_SPEC = importlib.util.spec_from_file_location(
@@ -82,19 +81,16 @@ def _now_for_frozen_prediction(bv_json: dict) -> pd.Timestamp:
     alors exactement les `HORIZON` points futurs et aucune observation
     passée.
     """
-    rec = find_record(DOSSIER)
     path = config.CENTRALES_DIR / DOSSIER / "data_preparation.csv"
     df = read_data_preparation_csv(path)
     last_obs = df["debit_m3s"].dropna().index.max()
 
-    decalage_h = 0
-    if rec.get("flex_strategy") != "HAUTE_CHUTE":
-        transit_centrale = transit_centrale_from_bv_json(bv_json)
-        season = season_for_month(last_obs.month)
-        decalage_h = round(transit_centrale.get(season, 0))
+    transit_centrale = transit_centrale_from_bv_json(bv_json)
+    season = season_for_month(last_obs.month)
+    decalage_h = round(transit_centrale.get(season, 0))
 
     first_future_utc = last_obs + pd.Timedelta(hours=decalage_h) + pd.Timedelta(hours=1)
-    return to_display_timezone(pd.DatetimeIndex([first_future_utc]), rec.get("flex_strategy"))[0]
+    return to_display_timezone(pd.DatetimeIndex([first_future_utc]))[0]
 
 
 @pytest.mark.slow

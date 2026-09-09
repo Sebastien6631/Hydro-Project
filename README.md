@@ -3,11 +3,11 @@
 > **Version projet de cours MLOps** — ce dépôt est une version réduite de
 > previ-R2-D2 (pipeline de production chez Barthe EnR), adaptée pour un
 > projet de cours réalisé hors du réseau de l'entreprise. Périmètre réduit
-> à 3 centrales (`apas_G1_G4`, `nancy_A`, `touzac_g2_G2`, toutes
+> à 2 centrales (`apas_G1_G4`, `touzac_g2_G2`, toutes
 > `flex_strategy: DEFAULT`). Les modules suivants, inaccessibles hors
 > serveur de production, ont été retirés :
 > - **OneGate** (`memorandum.py`) — API interne de structure des centrales ;
->   `config-general.json`/`config-raccordement.json` des 3 centrales sont
+>   `config-general.json`/`config-raccordement.json` des 2 centrales sont
 >   désormais des données statiques, versionnées via DVC.
 > - **hydrospot_stream** (`preprocessing/puissance/`) — source de puissance
 >   sur NAS ; `puissance.csv`/`puissance_horaire.csv` figés, idem.
@@ -15,7 +15,7 @@
 >   (parseur pur, sans réseau) est conservé ; les colonnes météo de
 >   `data_preparation.csv` restent figées en attendant un sous-projet
 >   séparé de remplacement par une API météo publique.
-> - **automate** (rsync/SSH, `HAUTE_CHUTE`) — aucune des 3 centrales
+> - **automate** (rsync/SSH, `HAUTE_CHUTE`) — aucune des 2 centrales
 >   gardées n'utilise cette stratégie.
 > - **Mail/digest quotidien** et **MLflow** — hors périmètre (lancement
 >   manuel des scripts ; le tracking d'expériences est à refaire proprement
@@ -83,7 +83,7 @@ previ-R2-D2/
 │   └── postprocessing/dvc.yaml    # predict_archive (horaire)
 ├── outputs/                       # sorties de prédiction/entraînement (gitignored)
 ├── tests/                         # miroir de src/previ_r2d2/
-├── centrales/                     # données des 3 centrales -- <dossier>/ versionné via DVC
+├── centrales/                     # données des 2 centrales -- <dossier>/ versionné via DVC
 │   │                              #   (remote local ../remote_dvc, cf. <dossier>.dvc à la racine)
 │   ├── REFERENCE/                 # bv_rules.json + centrales_calibration.json (git-tracké) ;
 │   │                              #   config-general.json + shapefiles/ versionnés via DVC ;
@@ -109,7 +109,7 @@ pip install requests pandas "numpy<2.4" scikit-learn scipy pyyaml \
     dvc pytest
 pip install -e . --no-deps   # --no-deps : cf. note ci-dessous
 
-dvc pull   # données statiques des 3 centrales (config-general.json,
+dvc pull   # données statiques des 2 centrales (config-general.json,
            # shapefiles/, centrales/<dossier>/...) depuis le remote DVC local
 ```
 
@@ -217,7 +217,7 @@ externe (cf. note en tête de fichier).
 
 ### `maj-data.py` — import / mise à jour des débits
 
-Pour chaque raccordement `flex_strategy == "DEFAULT"` (les 3 centrales gardées
+Pour chaque raccordement `flex_strategy == "DEFAULT"` (les 2 centrales gardées
 le sont toutes), on traite **la station de référence**
 (`station_vigicrue_reference`) **et toutes les stations amont**
 (`stations_vigicrue_amont`, codes séparés par des virgules). Pour chaque station :
@@ -270,7 +270,7 @@ certaines régions n'étaient pas couvertes par la grille NWP avant une
 certaine date ; pour un raccordement dont le bassin versant tombe dans
 une telle région, `data_preparation.csv` peut avoir une portion de son
 historique débit sans météo en face (gap réel côté fournisseur, rien à
-corriger côté code) — cela ne concerne aucune des 3 centrales gardées
+corriger côté code) — cela ne concerne aucune des 2 centrales gardées
 dans ce dépôt.
 
 ```bash
@@ -296,7 +296,7 @@ rafraîchies à chaque exécution ; les colonnes météo restent figées (plus
 d'acquisition FTP, cf. note en tête de fichier) tant qu'un sous-projet API
 météo publique n'est pas ajouté.
 
-- Débit : station de référence Hub'Eau (les 3 centrales gardées sont toutes
+- Débit : station de référence Hub'Eau (les 2 centrales gardées sont toutes
   en `flex_strategy == "DEFAULT"`).
 - Amont : colonne `debit_amont` (un seul) ou `debit_amont_{code}` (plusieurs,
   dédupliqués), nommage repris de `lightgbm_model.py` (Previ_v2).
@@ -340,7 +340,7 @@ minuscules côté récent) -- `nwp_reader.parse_nwp_file` normalise la casse des
 colonnes avant le rename pour accepter les deux formats.
 
 ```bash
-python cron/scripts/build-data-preparation.py                            # les 3 centrales
+python cron/scripts/build-data-preparation.py                            # les 2 centrales
 python cron/scripts/build-data-preparation.py --dossier apas_G1_G4       # test ciblé
 python cron/scripts/build-data-preparation.py --full-history             # backfill complet
 ```

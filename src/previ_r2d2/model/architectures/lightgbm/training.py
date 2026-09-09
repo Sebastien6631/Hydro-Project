@@ -20,6 +20,7 @@ import optuna
 from sklearn.model_selection import TimeSeriesSplit
 
 from previ_r2d2.model.architectures.lightgbm.metrics import debit_weights, debit_quantiles, kge_loss
+from previ_r2d2.model.pipeline.split import train_val_test_indices
 
 logger = logging.getLogger(__name__)
 
@@ -230,9 +231,44 @@ def fit_final(X: pd.DataFrame, y: pd.Series, horizon: int, mult_poids: float, ti
     else:
         best_params = dict(OOF_LGBM_PARAMS)
 
+    # Découpe chronologique 80/10/10 : le fit final n'avait AUCUN early stopping
+    # (contrairement à fit_oof), donc aucun garde-fou contre le sur-apprentissage.
+    # Céder 20% des lignes sans rien en retour aurait été une perte sèche : val
+    # sert désormais à l'early stopping, test à un KGE honnête (diagnostic seul).
+    fit_s, val_s, test_s = train_val_test_indices(len(X_top))
+    has_val = val_s.stop > val_s.start
+    sw_fit = sw[fit_s]
+
     model = lgb.LGBMRegressor(**best_params)
-    model.fit(X_top, y_log, sample_weight=sw)
-    logger.info("fit_final: entraînement final terminé (%d features)", len(top_features))
+    if has_val:
+        # eval_sample_weight explicite : sans lui LightGBM réutilise pour la série
+        # "fit" le Dataset déjà pondéré, mais construit "val" à weight=None -- les
+        # deux courbes seraient sur des échelles incohérentes, masquant justement
+        # le sur-apprentissage que l'early stopping doit détecter.
+        sw_val = debit_weights(y_arr[val_s], mult_poids, y_ref=y_arr[fit_s])
+        model.fit(
+            X_top.iloc[fit_s], y_log[fit_s], sample_weight=sw_fit,
+            eval_set=[(X_top.iloc[fit_s], y_log[fit_s]), (X_top.iloc[val_s], y_log[val_s])],
+            eval_sample_weight=[sw_fit, sw_val],
+            callbacks=[lgb.early_stopping(50, verbose=False)],
+        )
+    else:
+        model.fit(X_top.iloc[fit_s], y_log[fit_s], sample_weight=sw_fit)
+
+    def _kge(sl):
+        if sl.stop <= sl.start:
+            return float("nan")
+        yt, yp = np.expm1(y_log[sl]), np.expm1(model.predict(X_top.iloc[sl])).clip(0)
+        return float(1.0 - kge_loss(yt, yp))  # kge_loss = 1 - KGE (cf. objective_reg)
+
+    training_curve = {"kge_fit": _kge(fit_s), "kge_val": _kge(val_s), "kge_test": _kge(test_s)}
+    logger.info(
+        "fit_final: entraînement final terminé (%d features, fit=%d/val=%d/test=%d) "
+        "| kge_fit=%.4f kge_val=%.4f kge_test=%.4f",
+        len(top_features), fit_s.stop - fit_s.start, val_s.stop - val_s.start,
+        test_s.stop - test_s.start, training_curve["kge_fit"], training_curve["kge_val"],
+        training_curve["kge_test"],
+    )
 
     return {
         "model": model,
@@ -241,4 +277,5 @@ def fit_final(X: pd.DataFrame, y: pd.Series, horizon: int, mult_poids: float, ti
         "q90": q90,
         "q99": q99,
         "n_train": len(X),
+        "training_curve": training_curve,
     }

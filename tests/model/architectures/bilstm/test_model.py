@@ -74,9 +74,12 @@ def test_fit_oof_returns_correct_shape_and_trains_usable_model():
     # un scaler par fold OOF (2) + un scaler final = 3.
     assert len(model.scalers) == 3
 
-    # le modèle final chargé (self) reste utilisable en inférence.
+    # le modèle final chargé (self) reste utilisable en inférence. fit_oof laisse
+    # le modèle sur son device d'entraînement (cuda si GPU) : un appel direct à
+    # nn.Module.__call__ doit aligner le tenseur, comme n'importe quel code torch.
     model.eval()
-    x_test = torch.tensor(X_seq[:5], dtype=torch.float32)
+    device = next(model.parameters()).device
+    x_test = torch.tensor(X_seq[:5], dtype=torch.float32, device=device)
     with torch.no_grad():
         preds = model(x_test)
     assert preds.shape == (5, horizon)

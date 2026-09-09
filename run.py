@@ -2,7 +2,7 @@
 """Point d'entrée CLI -- previ-R2-D2.
 
 Usage :
-    python run.py --train --dossier nancy_ruedaum_G1 --horizon 8
+    python run.py --train --dossier touzac_g2_G2 --horizon 8
     python run.py --train --all-dossiers
 """
 

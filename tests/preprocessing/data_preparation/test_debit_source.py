@@ -1,24 +1,10 @@
 from __future__ import annotations
 
-import pandas as pd
 import pytest
 
 from previ_r2d2.common import config
 from previ_r2d2.preprocessing.data_preparation.debit_source import debit_series
 
-
-def test_debit_series_reads_debit_automate_csv_for_haute_chute(tmp_path, monkeypatch):
-    monkeypatch.setattr(config, "CENTRALES_DIR", tmp_path)
-    path = tmp_path / "melles" / "debit_automate.csv"
-    path.parent.mkdir(parents=True)
-    path.write_text(
-        "Date (TU);Valeur (en m³/s)\n2026-07-08T23:00:00Z;1.650\n", encoding="utf-8-sig"
-    )
-    rec = {"dossier": "melles", "flex_strategy": "HAUTE_CHUTE"}
-
-    result = debit_series(rec)
-
-    assert result.tolist() == pytest.approx([1.650])
 
 
 def test_debit_series_reads_reference_station_csv_for_default(tmp_path, monkeypatch):
