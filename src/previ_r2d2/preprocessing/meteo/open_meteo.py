@@ -36,6 +36,7 @@ crues -- silencieusement, la pluie étant le moteur du modèle. On préfère
 from __future__ import annotations
 
 import logging
+import time
 
 import pandas as pd
 import requests
@@ -53,17 +54,32 @@ HOURLY_VARS = "temperature_2m,precipitation"
 MODELS = "meteofrance_seamless"
 FORECAST_PAST_DAYS_MAX = 92
 ARCHIVE_LAG_DAYS = 2  # l'archive des prévisions passées suit le temps réel à ~2 jours
-TIMEOUT_S = 60
+# 3,8 ans de pas horaires par point : la reponse est grosse et l'API met
+# parfois >1 min. Mesure : a 60 s, 4 points sur 7 tombaient en timeout.
+TIMEOUT_S = 180
+RETRY_ATTEMPTS = 3
+RETRY_BACKOFF_S = (5, 15)
 KELVIN = 273.15
 
 
 def _get(url: str, params: dict) -> dict:
-    resp = requests.get(url, params=params, timeout=TIMEOUT_S)
-    resp.raise_for_status()
-    data = resp.json()
-    if "error" in data:
-        raise RuntimeError(f"Open-Meteo : {data.get('reason', data['error'])}")
-    return data
+    """GET avec reessais : un timeout transitoire ne doit pas faire perdre
+    definitivement un point meteo (read_points l'ignorerait, laissant une
+    centrale avec un historique partiel et silencieusement incomplet)."""
+    for attempt in range(RETRY_ATTEMPTS):
+        try:
+            resp = requests.get(url, params=params, timeout=TIMEOUT_S)
+            resp.raise_for_status()
+            data = resp.json()
+            if "error" in data:
+                raise RuntimeError(f"Open-Meteo : {data.get('reason', data['error'])}")
+            return data
+        except (requests.exceptions.RequestException, RuntimeError):
+            if attempt == RETRY_ATTEMPTS - 1:
+                raise
+            logger.warning("Open-Meteo : echec (essai %d/%d), nouvel essai.", attempt + 1, RETRY_ATTEMPTS)
+            time.sleep(RETRY_BACKOFF_S[attempt])
+    raise RuntimeError("unreachable")
 
 
 def _frame(data: dict) -> pd.DataFrame:
@@ -75,6 +91,12 @@ def _frame(data: dict) -> pd.DataFrame:
         {"temperature_2m": hourly["temperature_2m"], "precipitation": hourly["precipitation"]},
         index=pd.to_datetime(hourly["time"]),
     )
+    # Purge des trous AVANT toute fusion : l'API renvoie l'axe temporel complet
+    # qu'on a demandé, avec des null là où le modèle n'a pas de données
+    # (`past_days=92` sur un modèle qui n'archive que 60 jours). Sans ce dropna,
+    # ces null gagnent le recouvrement via `keep="last"` et EFFACENT les vraies
+    # valeurs de l'archive -- 32 jours perdus en silence, mesuré.
+    df = df.dropna(how="any")
     df.attrs["elevation"] = data.get("elevation")
     return df
 

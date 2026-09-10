@@ -28,6 +28,7 @@ import shutil
 import sys
 from pathlib import Path
 
+from previ_r2d2.common.console import force_utf8
 from previ_r2d2.common import config
 from previ_r2d2.common.dvc_markers import write as write_marker
 from previ_r2d2.model.pipeline.eligibility import is_eligible_for_training
@@ -168,6 +169,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def main() -> int:
+    force_utf8()
     logging.basicConfig(
         level=logging.INFO,
         format="[%(asctime)s] %(levelname)s | %(name)s | %(message)s",

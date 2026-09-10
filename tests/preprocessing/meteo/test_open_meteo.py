@@ -97,3 +97,25 @@ def test_forecast_wins_over_archive_on_the_overlap(monkeypatch):
                                 pd.Timestamp("2026-09-01"), pd.Timestamp("2026-09-02"))
 
     assert df["temperature_S1"].tolist() == pytest.approx([275.15, 275.15])  # 2 °C = prévision
+
+
+def test_gaps_in_the_forecast_never_erase_archive_values(monkeypatch):
+    """L'API rend l'axe temporel demandé en entier, avec des null là où le
+    modèle n'a rien (`past_days` plus long que son archive réelle). Comme la
+    prévision gagne le recouvrement, un null non purgé effacerait la vraie
+    valeur venue de l'archive -- 32 jours perdus en silence, constaté."""
+    times = ["2026-09-01T00:00", "2026-09-01T01:00"]
+
+    def _get(url, params):
+        if url == open_meteo.ARCHIVE_URL:
+            return _reponse(times, [1.0, 1.0], [0.0, 0.0])
+        return _reponse(times, [None, 2.0], [None, 0.0])  # trou sur le premier pas
+
+    monkeypatch.setattr(open_meteo, "_get", _get)
+    monkeypatch.setattr(open_meteo, "ARCHIVE_LAG_DAYS", -3650)
+
+    df = open_meteo.read_points([{"id": 1, "lat": 42.9, "lon": 0.4}],
+                                pd.Timestamp("2026-09-01"), pd.Timestamp("2026-09-02"))
+
+    # pas 0 : l'archive survit (1 °C) ; pas 1 : la prévision prime (2 °C)
+    assert df["temperature_S1"].tolist() == pytest.approx([274.15, 275.15])

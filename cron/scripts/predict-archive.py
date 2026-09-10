@@ -15,6 +15,7 @@ import sys
 
 import pandas as pd
 
+from previ_r2d2.common.console import force_utf8
 from previ_r2d2.common import config
 from previ_r2d2.common.dvc_markers import write as write_marker
 from previ_r2d2.model.pipeline.eligibility import has_production_model
@@ -66,6 +67,7 @@ def run() -> int:
 
 
 def main() -> int:
+    force_utf8()
     logging.basicConfig(
         level=logging.INFO,
         format="[%(asctime)s] %(levelname)s | %(name)s | %(message)s",
