@@ -471,3 +471,28 @@ L'image contient Python 3.11, PyTorch CPU, LightGBM, DVC et le package
 
 Le code est **bind-monté** : une modif locale est vue immédiatement dans le
 conteneur, pas de rebuild sauf changement de dépendances.
+
+## API d'inférence (FastAPI) — Phase 1
+
+Expose le modèle promu en HTTP. Prévision **h8 uniquement**, sur données
+figées (`source="frozen"`, 100 % reproductible).
+
+```bash
+docker compose up -d api          # http://localhost:8000
+curl http://localhost:8000/health
+curl http://localhost:8000/models
+curl -X POST http://localhost:8000/predict \
+     -H 'content-type: application/json' \
+     -d '{"dossier": "touzac_g2_G2"}'
+```
+
+| Endpoint | Rôle |
+|---|---|
+| `GET /health` | état + centrales servies |
+| `GET /models` | modèles promus (version, KGE) |
+| `POST /predict` | `{dossier}` → prévision débit h8 (série `q_stacking_m3s` / `q_entrant_m3s`) |
+| `GET /docs` | Swagger UI |
+
+Le modèle est chargé depuis `models/<dossier>/h8/` (versionné DVC) — faire
+`docker compose run --rm app dvc pull` au préalable. Sécurisation (auth,
+rate-limit, logs structurés) : phase 3.

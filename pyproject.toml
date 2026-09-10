@@ -22,10 +22,12 @@ dependencies = [
     "shap",
     "dvc>=3.0",
     "dvc-http",       # remote DVC DagsHub en https
+    "fastapi",        # API d'inférence (phase 1)
+    "uvicorn",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest"]
+dev = ["pytest", "httpx"]   # httpx : requis par fastapi.testclient
 
 [tool.setuptools.packages.find]
 where = ["src"]
