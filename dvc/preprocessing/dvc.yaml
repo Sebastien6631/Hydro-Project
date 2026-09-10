@@ -42,3 +42,16 @@ stages:
     outs:
       - logs/dvc_markers/data_preparation.json:
           cache: false
+
+  validate:
+    wdir: ../..
+    cmd: python cron/scripts/validate-data.py
+    deps:
+      - logs/dvc_markers/data_preparation.json
+      - src/previ_r2d2/preprocessing/data_preparation/validation.py
+    # Comme les stages amont : la vraie donnée (centrales/<d>/data_preparation.csv)
+    # est hors DVC, on force à chaque repro. Erreur de contrat -> exit != 0 -> repro stoppe.
+    always_changed: true
+    outs:
+      - logs/dvc_markers/validate.json:
+          cache: false
