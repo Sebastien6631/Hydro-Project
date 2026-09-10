@@ -30,9 +30,9 @@ machine qui a fait la simplification).
   mapping (`preprocessing/puissance/puissance_store.py::find_source_folder`/
   `load_puissance_mapping`) a survécu, car `preprocessing/onboarding/
   validation.py` (gardé) en dépend.
-- **FTP météo NWP** (`nwp_ftp.py`/`retention.py`) — seul
-  `preprocessing/meteo/nwp_reader.py` (parseur pur, sans réseau) a survécu,
-  utilisé par `bv_builder.py` et `data_preparation/dossier_window.py`.
+- **FTP météo NWP** (`nwp_ftp.py`/`retention.py`/`nwp_reader.py`) — remplacé
+  le 2026-09-10 par `preprocessing/meteo/open_meteo.py` (API Météo-France),
+  qui rend le même contrat de colonnes sans fichier local. Cf. section Météo.
 - **Mail/digest quotidien** (`mailer.py`/`daily_report.py`) et **MLflow**
   (`mlflow_tracker.py`) — retirés entièrement. MLflow est **volontairement**
   à refaire proprement comme partie du travail de cours, pas juste "pas
@@ -210,11 +210,11 @@ comme sortie son seul marker, les modèles étant dvc-add par `promote_model`.
 ```
 
 `data_preparation` ne dépend plus du marker `puissance` (stage supprimé,
-donnée figée sans remplacement de suivi). Dépend de
-`src/previ_r2d2/preprocessing/meteo/nwp_reader.py` spécifiquement (pas tout
-le dossier `meteo/`, qui n'a plus que ce fichier). Les colonnes météo de
-`data_preparation.csv` restent figées (plus de FTP pour les rallonger) ;
-seules débit/amont sont réellement rafraîchies par ce stage.
+donnée figée sans remplacement de suivi). Il dépend de
+`preprocessing/meteo/open_meteo.py` : la météo n'est plus figée, elle est
+refetchée sur la fenêtre demandée à chaque exécution, au même titre que le
+débit. `FULL_HISTORY_START` vaut `open_meteo.ARCHIVE_MIN_DATE` — démarrer
+avant la météo disponible sabote le split (cf. pièges).
 
 `dvc/model/dvc.yaml` a été SUPPRIMÉ le 2026-09-09 (ses 2 seuls stages,
 train_new/train_monthly, retirés faute de cron pour les déclencher) --
@@ -458,9 +458,10 @@ Deux fonctions ont été rapatriées avant la suppression : `haversine_km` dans
 
 - **La promotion est EXPLICITE depuis le 2026-09-09** — `train.py` entraîne,
   évalue et écrit le candidat dans `weights/hybrid_candidate/`, mais ne promeut
-  QUE si `--promote` est passé. `--dossier` est désormais obligatoire (les
-  modes automatisés `--mode new|monthly` ont été retirés en même temps que
-  `dvc/model/dvc.yaml`), donc AUCUN entraînement ne promeut sans geste explicite.
+  QUE si `--promote` est passé. Le stage DVC `train` le passe (il EST le chemin
+  automatisé) ; un lancement manuel `--dossier` ne promeut donc jamais tout
+  seul. Sans `--dossier`, `train.py` boucle sur toutes les centrales onboardées,
+  filtrées par `is_eligible_for_training`.
   `promote_model` refuse en plus de tourner si l'arbre git n'est pas propre
   (sinon son commit de promotion embarquerait des modifications sans rapport).
 - **`promote_model` invoque `python -m dvc`, pas `dvc`** — sur Windows,
@@ -490,9 +491,11 @@ Deux fonctions ont été rapatriées avant la suppression : `haversine_km` dans
 python cron/scripts/maj-data.py --dossier apas_G1_G4      # test ciblé débit (Hub'Eau réel)
 python cron/scripts/onboarding-check.py                   # tous les raccordements (pas de --dossier)
 python cron/scripts/build-data-preparation.py --dossier apas_G1_G4
-python cron/scripts/train.py --dossier touzac_g2_G2 --horizon 8 --force  # entraînement réel réduit
+python cron/scripts/train.py --dossier touzac_g2_G2 --horizon 8 --force  # candidat seul, aucune promotion
+python cron/scripts/train.py --dossier touzac_g2_G2 --horizon 8 --force --promote  # + promotion si meilleur
+python cron/scripts/train.py --promote                     # stage DVC train : toutes les centrales éligibles
 python cron/scripts/predict-archive.py                     # prédit + archive toutes les centrales avec modèle en prod
-python -m pytest tests/ -q                                 # suite rapide (342 passed, 2 deselected)
+python -m pytest tests/ -q                                 # suite rapide (290 passed, 2 deselected)
 python -m pytest tests/integration/ -v -m slow             # tests réels lents (entraînement + prédiction, ~30 min)
 ```
 
