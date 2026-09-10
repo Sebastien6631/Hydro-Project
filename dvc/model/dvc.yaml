@@ -1,0 +1,25 @@
+stages:
+  train:
+    wdir: ../..
+    # Boucle sur toutes les centrales onboardées et tous les horizons ; c'est
+    # `is_eligible_for_training` qui filtre (12 mois d'historique minimum,
+    # réentraînement au plus tous les RETRAIN_INTERVAL_DAYS). Sans centrale
+    # éligible, le stage ne fait rien et le dit -- ce n'est pas une erreur.
+    #
+    # `--promote` : le stage EST le chemin automatisé, il promeut donc si le
+    # candidat bat la production sur le même holdout. Les lancements manuels
+    # `--dossier` restent non destructifs par défaut (cf. train.py).
+    cmd: python cron/scripts/train.py --promote
+    deps:
+      - centrales/REFERENCE/config-general.json
+      - logs/dvc_markers/data_preparation.json
+      - src/previ_r2d2/model/
+      - cron/scripts/train.py
+      - cron/scripts/build-data-preparation.py
+    # L'éligibilité se calcule à chaque exécution (elle dépend de la date, pas
+    # des deps déclarées) : sans always_changed, un dossier devenu éligible
+    # aujourd'hui ne serait jamais entraîné.
+    always_changed: true
+    outs:
+      - logs/dvc_markers/train.json:
+          cache: false

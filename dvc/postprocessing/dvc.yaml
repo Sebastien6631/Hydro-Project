@@ -3,6 +3,13 @@ stages:
     wdir: ../..
     cmd: python cron/scripts/predict-archive.py
     deps:
+      # Les modèles EN PRODUCTION, produits par le stage `train` (via
+      # promote_model, qui les dvc-add). On dépend de l'ARTEFACT, pas du
+      # marker d'entraînement : `train` est always_changed, donc en dépendre
+      # ferait ré-entraîner avant chaque prédiction horaire -- bug de prod
+      # déjà rencontré et corrigé (cf. ab75b0f), à ne pas réintroduire.
+      - models/apas_G1_G4/h8
+      - models/touzac_g2_G2/h8
       - src/previ_r2d2/model/pipeline/predict_orchestrator.py
       - src/previ_r2d2/postprocessing/archive.py
       - cron/scripts/predict-archive.py

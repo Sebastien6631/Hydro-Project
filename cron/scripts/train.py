@@ -1,21 +1,23 @@
 #!/usr/bin/env python3
-"""train — entraînement d'une centrale/horizon, lancement manuel.
+"""train — stage DVC dvc/model/dvc.yaml:train, et outil manuel.
 
-Entraîne un candidat, le compare au modèle en production sur le MÊME holdout
-(cf. promotion.py), et affiche la décision. Ne promeut que si `--promote` est
-passé : la promotion copie le candidat dans `models/`, le versionne (dvc add)
-et crée un commit + tag git, et versionne aussi data_preparation.csv + bv.json
-avec le modèle pour une reproductibilité exacte de chaque version promue.
+Sans `--dossier` : boucle sur toutes les centrales onboardées et tous les
+horizons, filtrés par `is_eligible_for_training` (12 mois d'historique,
+échéance de réentraînement). C'est le mode du stage DVC, qui passe `--promote`.
 
-Avant d'entraîner, rafraîchit le data_preparation.csv du dossier -- un seul à
-la fois, jamais toutes les centrales (cf. refresh_data_preparation) :
-is_eligible_for_training lit ce fichier pour l'historique 12 mois, donc sans ce
-rafraîchissement ciblé une toute nouvelle centrale ne l'aurait jamais (fichier
-jamais généré = 0 jour d'historique pour toujours, blocage permanent).
+Avec `--dossier` : test manuel ciblé, non destructif par défaut -- il écrit un
+candidat dans `weights/hybrid_candidate/` et affiche la décision, sans toucher
+à `models/` ni à git tant que `--promote` n'est pas passé.
 
-Les cadences automatisées (`run_new_dossiers` quotidien / `run_monthly_retrain`
-mensuel, stages DVC train_new/train_monthly) ont été retirées le 2026-09-09 :
-sans cron dans cette version, elles n'étaient jamais déclenchées.
+La promotion copie le candidat dans `models/`, le versionne (dvc add), crée un
+commit + tag git, et versionne aussi data_preparation.csv + bv.json avec le
+modèle pour une reproductibilité exacte de chaque version promue.
+
+Avant d'entraîner un dossier, rafraîchit son data_preparation.csv -- un seul à
+la fois, jamais toutes les centrales : `is_eligible_for_training` lit ce fichier
+pour l'historique 12 mois, donc sans ce rafraîchissement ciblé une toute
+nouvelle centrale ne l'aurait jamais (fichier jamais généré = 0 jour
+d'historique pour toujours, blocage permanent).
 """
 
 from __future__ import annotations
@@ -47,6 +49,11 @@ _bdp_spec.loader.exec_module(build_data_preparation_script)
 DEFAULT_EPOCHS = 100
 DEFAULT_N_TRIALS_LGBM = 100
 DEFAULT_N_TRIALS_FINAL = 100
+
+
+def discover_dossiers() -> list[str]:
+    """Centrales onboardées (celles qui ont un bv.json)."""
+    return sorted(p.parent.name for p in config.CENTRALES_DIR.glob("*/bv.json"))
 
 
 def load_bv_json(dossier: str) -> dict:
@@ -117,13 +124,18 @@ def train_one(
     return summary
 
 
-def run(dossier: str, horizon: int | None = None, force: bool = False,
+def run(dossier: str | None = None, horizon: int | None = None, force: bool = False,
         promote: bool = False) -> int:
-    """Test manuel ciblé : une seule centrale/horizon (`force=True` ignore
-    l'éligibilité, pour pouvoir tester même sans historique de 12 mois ou
-    avant l'échéance de réentraînement). Rafraîchit data_preparation pour ce
-    dossier avant d'entraîner."""
-    dossiers = [dossier]
+    """Entraîne les centrales éligibles.
+
+    `dossier`/`horizon` omis : toutes les centrales onboardées, tous les
+    horizons -- c'est le mode du stage DVC `train`. Précisés : test manuel
+    ciblé. `force=True` ignore l'éligibilité (12 mois d'historique, échéance de
+    réentraînement), pour tester sans attendre.
+
+    Rafraîchit data_preparation de chaque dossier avant de l'entraîner.
+    """
+    dossiers = [dossier] if dossier is not None else discover_dossiers()
     horizons = [horizon] if horizon is not None else sorted(HORIZON_CFG.keys())
     summaries = []
     had_error = False
@@ -153,7 +165,7 @@ def run(dossier: str, horizon: int | None = None, force: bool = False,
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--dossier", required=True, help="Centrale à entraîner.")
+    parser.add_argument("--dossier", help="Cibler une seule centrale (défaut : toutes les onboardées).")
     parser.add_argument("--horizon", type=int, help="Test manuel ciblé sur cet horizon (8/48/72).")
     parser.add_argument(
         "--promote", action="store_true",

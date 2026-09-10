@@ -189,7 +189,7 @@ consulter, pas à copier tel quel).
 |---|---|---|
 | Cœur ML (LightGBM + BiLSTM + stacking) | ✅ | `src/previ_r2d2/model/` |
 | Preprocessing (débit, BV, data_preparation, météo) | ✅ | `src/previ_r2d2/preprocessing/` |
-| Pipeline DVC preprocessing (4 stages) | ✅ | `dvc/preprocessing/dvc.yaml` |
+| Pipeline DVC complet (3 + 1 + 1 stages) | ✅ | `debit → onboarding_check → data_preparation` puis `train` puis `predict_archive` |
 | Reproductibilité (graines fixées) | ✅ | `model/seeding.py` |
 | Support GPU + early stopping | ✅ | `model/device.py` (GPU = local seulement) |
 | Promotion de modèle (`dvc add` + tag git) | ✅ | `model/pipeline/promotion.py` |
@@ -240,7 +240,7 @@ consulter, pas à copier tel quel).
 | 4.3 | Mises à jour automatisées du modèle | libre | ⬜ | réentraînement + promotion KGE, planifié Airflow |
 | 4.4 | Déploiement cloud (documenté a minima) | équipe | ⏸️ | pas de crédits cloud — stratégie décrite |
 | 4.5 | Documentation technique finale | équipe | ⬜ 🧪 | `ARCHITECTURE.md` + `MLOPS.md` (brique → cours) |
-| 4.6 | **API Météo France + Hub'Eau** — dé-figer les données | sg | 🔄 | `feat/sg-meteo-api` ou `phase4/live-data` ; ne doit pas changer la forme de sortie ; + secret `METEOFRANCE_API_KEY` ; régénère `data_preparation.csv` → `dvc push` |
+| 4.6 | **API Météo France + Hub'Eau** — dé-figer les données | sg | ✅ | `feat/meteo` ; Open-Meteo (modèles Météo-France), **pas de clé d'API nécessaire** ; prédiction live validée. ⚠️ **A changé la forme de sortie** : `niveau0` a disparu (aucun modèle MF ne l'expose, ni ERA5) → 45 → 38 colonnes, anciens modèles incompatibles, réentraînement complet. Historique ramené à 3,8 ans (2022-11-15) pour rester homogène — l'archive ERA5 donne 3× plus de pluie que MF. |
 
 ### Transverse
 

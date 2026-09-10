@@ -191,10 +191,22 @@ passe jamais `source=` explicitement.
 (plus de préférence pour la grille NWP 2021, fonction retirée) s'applique
 systématiquement si on relance en mode `--force` sans shapefile.
 
-## Pipeline DVC (`dvc/preprocessing/dvc.yaml`, 3 stages)
+## Pipeline DVC (3 fichiers, 5 stages)
 
 ```
-debit (Hub'Eau, always_changed) ──> onboarding_check (always_changed) ──> data_preparation (always_changed)
+debit ──> onboarding_check ──> data_preparation      (dvc/preprocessing)
+                                      │
+                                      v
+                                    train                (dvc/model)
+                                      │  promote_model dvc-add models/<d>/h<h>
+                                      v
+                          models/<d>/h8.dvc ──> predict_archive   (dvc/postprocessing)
+
+`predict_archive` dépend des MODÈLES, jamais du marker d'entraînement : `train`
+est `always_changed`, donc en dépendre ferait ré-entraîner avant chaque
+prédiction horaire (bug de prod corrigé par ab75b0f, à ne pas réintroduire).
+Il n'y a donc PAS d'arête directe `train -> predict_archive` : `train` déclare
+comme sortie son seul marker, les modèles étant dvc-add par `promote_model`.
 ```
 
 `data_preparation` ne dépend plus du marker `puissance` (stage supprimé,
