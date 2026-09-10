@@ -26,7 +26,7 @@ Efficiency), comme projet fil rouge de la formation DataScientest, spécialité
 |---|---|
 | Centrales | **2** : `apas_G1_G4`, `touzac_g2_G2` (`nancy_A` retirée au nettoyage) |
 | Horizon | **h8 uniquement** (h48 / h72 hors périmètre — « pour ne pas se compliquer ») |
-| Données | **figées** — `source="frozen"` (ancré sur la dernière ligne de `data_preparation.csv`) |
+| Données | 🔄 Sébastien branche les **API Météo France + Hub'Eau** pour dé-figer (cf. tâche 4.6). En attendant : `source="frozen"` (ancré sur la dernière ligne de `data_preparation.csv`) |
 | LLM / agents | **aucun** (si un jour jugé utile → 2ᵉ évaluation obligatoire pour suivre ses perfs) |
 | GPU | non disponible sur les VM DataScientest — CPU par défaut ; `model/device.py` (support GPU) = local / bonus |
 
@@ -79,14 +79,16 @@ password <token>` (ou via `.env` + `entrypoint.sh` dans le conteneur).
 ```
 main   ← prod : uniquement du code validé à deux
  └─ dev ← intégration commune (copie de main)
-     ├─ feat/xh-<sujet>   (Xavier)
-     └─ feat/sg-<sujet>   (Sébastien)
+     ├─ phase1/docker        phase1/api ...
+     └─ phase2/mlflow        phase3/airflow ...
 ```
 
-- Chacun bosse **sur sa branche** partant de `dev`.
-- Partager l'avancement : `git push origin <branche>` + **PR vers `dev`**.
-  Tests verts avant merge. Revue croisée quand c'est possible.
-- `dev → main` quand un jalon (livrable de phase) est validé ensemble.
+- Branches nommées **`phaseN/<sujet>`** (une tâche = une branche), partant de `dev`.
+- Flux : `git push origin phaseN/<sujet>` → **PR vers `dev`** → re-test sur
+  `dev` → merge `dev → main` quand le livrable de phase est validé à deux.
+- Tests verts avant merge. Revue croisée quand c'est possible.
+- **À chaque phase implémentée : mettre le `README.md` à jour** — commandes +
+  explication de ce que la phase apporte (une section par phase).
 - Après un entraînement qui promeut un modèle : `git push` **et** `dvc push`
   (`promote_model` committe/tague en local — cf. skill `hydro-projet`).
 - Commits : `type(scope): résumé` (`feat` `fix` `docs` `chore` `test`
@@ -200,7 +202,7 @@ consulter, pas à copier tel quel).
 | # | Tâche | Qui | État | Notes |
 |---|---|---|---|---|
 | 1.1 | Objectifs + métrique KGE documentés | équipe | 🔄 | à formaliser dans le doc de cadrage |
-| 1.2 | **Docker / Compose** (env reproductible) | xh | 🔄 | branche `feat/xh-docker` — Dockerfile + compose + entrypoint minimaux |
+| 1.2 | **Docker / Compose** (env reproductible) | xh | 🔄 | branche `phase1/docker` — Dockerfile + compose + entrypoint minimaux + section README |
 | 1.3 | Collecte + prétraitement des données | — | ✅ | cœur existant (dataset figé) |
 | 1.4 | Modèle de base + évaluation + tests | — | ✅ | |
 | 1.5 | Validation des données (contrat `data_preparation.csv`) | libre | ⬜ 🧪 | erreurs vs warnings, hand-rolled + stage DVC `validate` |
@@ -235,9 +237,10 @@ consulter, pas à copier tel quel).
 |---|---|---|---|---|
 | 4.1 | Prometheus + Grafana + **seuils d'alerte** | libre | ⬜ 🧪 | dashboards provisionnés + règles d'alerte |
 | 4.2 | Détection de dérive Evidently | libre | ⬜ 🧪 | dérive features d'entrée vs fenêtre d'entraînement |
-| 4.3 | Mises à jour automatisées du modèle | libre | ⬜ | réentraînement (dataset figé) + promotion KGE, planifié Airflow |
+| 4.3 | Mises à jour automatisées du modèle | libre | ⬜ | réentraînement + promotion KGE, planifié Airflow |
 | 4.4 | Déploiement cloud (documenté a minima) | équipe | ⏸️ | pas de crédits cloud — stratégie décrite |
 | 4.5 | Documentation technique finale | équipe | ⬜ 🧪 | `ARCHITECTURE.md` + `MLOPS.md` (brique → cours) |
+| 4.6 | **API Météo France + Hub'Eau** — dé-figer les données | sg | 🔄 | `feat/sg-meteo-api` ou `phase4/live-data` ; ne doit pas changer la forme de sortie ; + secret `METEOFRANCE_API_KEY` ; régénère `data_preparation.csv` → `dvc push` |
 
 ### Transverse
 

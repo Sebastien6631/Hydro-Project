@@ -1,0 +1,21 @@
+name: previ-r2d2
+
+# Un seul service pour l'instant : le code est bind-monté, les données
+# arrivent par `dvc pull`. Les phases suivantes (MLflow, API, Airflow...)
+# ajouteront leurs services ici.
+services:
+  app:
+    build: .
+    image: previ-r2d2:latest
+    working_dir: /app
+    environment:
+      DAGSHUB_USER: ${DAGSHUB_USER:-}
+      DAGSHUB_TOKEN: ${DAGSHUB_TOKEN:-}
+      GIT_AUTHOR_NAME: ${GIT_AUTHOR_NAME:-previ-r2d2}
+      GIT_AUTHOR_EMAIL: ${GIT_AUTHOR_EMAIL:-previ-r2d2@localhost}
+    volumes:
+      - .:/app
+    # Défaut : lance la suite de tests. Sinon :
+    #   docker compose run --rm app dvc pull
+    #   docker compose run --rm app python cron/scripts/train.py --dossier touzac_g2_G2 --horizon 8
+    command: ["python", "-m", "pytest", "-q"]

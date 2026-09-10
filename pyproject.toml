@@ -10,10 +10,7 @@ requires-python = ">=3.11"
 dependencies = [
     "requests",
     "pandas",
-    "numpy<2.4",  # pysheds 0.5 (dernière version dispo) utilise np.in1d, supprimé en numpy 2.4
-    "pysheds",
-    "rasterio",
-    "geopandas",
+    "numpy<2.4",
     "shapely",
     "pyproj",
     "scikit-learn",
@@ -25,7 +22,16 @@ dependencies = [
     "joblib",
     "matplotlib",
     "shap",
+    "dvc>=3.0",
+    "dvc-http",       # remote DVC DagsHub en https
 ]
+
+[project.optional-dependencies]
+# Délimitation de BV par MNT — lazy-import only (preprocessing/bv/delineation.py),
+# jamais exercé : les 2 centrales ont un shapefile connu. Lourd (GDAL/GEOS),
+# installé à la demande : pip install -e ".[gis]"
+gis = ["pysheds", "rasterio", "geopandas"]
+dev = ["pytest"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
