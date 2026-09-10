@@ -509,3 +509,25 @@ l'instant.
 ## Références
 
 - Hub'Eau hydrométrie : https://hubeau.eaufrance.fr/page/api-hydrometrie
+
+## Conteneurisation (Docker) — Phase 1
+
+Tout tourne dans un conteneur — plus besoin d'installer conda/Python en local.
+
+```bash
+cp .env.example .env      # renseigner DAGSHUB_USER + DAGSHUB_TOKEN + GIT_AUTHOR_*
+docker compose build     # construit l'image (~5-8 min la 1re fois)
+
+docker compose run --rm app                          # lance la suite de tests
+docker compose run --rm app dvc pull                 # données + modèles (DagsHub)
+docker compose run --rm app python run.py --train --dossier touzac_g2_G2 --horizon 8
+docker compose run --rm app bash                     # shell interactif
+```
+
+L'image contient Python 3.11, PyTorch CPU, LightGBM, DVC et le package
+`previ_r2d2`. Les extras GIS (`rasterio`/`geopandas`/`pysheds`) ne sont pas
+installés — lazy-import, jamais exercés pour les 2 centrales (`pip install -e
+".[gis]"` si besoin un jour).
+
+Le code est **bind-monté** : une modif locale est vue immédiatement dans le
+conteneur, pas de rebuild sauf changement de dépendances.

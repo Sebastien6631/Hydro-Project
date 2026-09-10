@@ -1,0 +1,13 @@
+.git
+.dvc/cache
+.venv
+__pycache__
+*.pyc
+centrales
+models
+weights
+outputs
+ARCHIVE
+logs
+*.log
+.env
