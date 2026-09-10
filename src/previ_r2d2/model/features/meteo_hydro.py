@@ -8,7 +8,6 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from previ_r2d2.preprocessing.bv.transit import haversine_km
 from previ_r2d2.model.features.et0 import compute_et0
 from previ_r2d2.model.features.snow import partition_precipitation, snow_melt
 
@@ -21,6 +20,20 @@ CHOC_HYDRAULIQUE_OFFSET = 0.1
 RATIO_EPS = 1e-6
 SURPRESSION_OFFSET = 0.1
 
+
+
+EARTH_RADIUS_KM = 6371.0
+
+
+def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Distance à vol d'oiseau (km) entre deux points GPS."""
+    from math import asin, cos, radians, sin, sqrt
+
+    phi1, phi2 = radians(lat1), radians(lat2)
+    dphi = radians(lat2 - lat1)
+    dlambda = radians(lon2 - lon1)
+    a = sin(dphi / 2) ** 2 + cos(phi1) * cos(phi2) * sin(dlambda / 2) ** 2
+    return 2 * EARTH_RADIUS_KM * asin(sqrt(a))
 
 def station_count(df: pd.DataFrame) -> int:
     suffixes = [c.split("_S")[-1] for c in df.columns if "_S" in c]

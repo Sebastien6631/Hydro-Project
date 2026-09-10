@@ -19,7 +19,7 @@ def make_full_df(n_hours=400):
             "longitude_S1": 0.9,
             "temperature_S1": 280.0,
             "precipitation_S1": precip_cumul,
-            "niveau0_S1": 1500.0,
+            "altitude_S1": 300.0,
         },
         index=index,
     )

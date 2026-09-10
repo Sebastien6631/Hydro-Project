@@ -25,6 +25,7 @@ from pathlib import Path
 
 import requests
 
+from previ_r2d2.common.console import force_utf8
 from previ_r2d2.common import config, dvc_markers
 from previ_r2d2.preprocessing.debit import hydro_export, hydro_update, station_store
 from previ_r2d2.preprocessing.debit.eaufrance import EauFranceClient, EauFranceError, series_range
@@ -201,6 +202,7 @@ def run(
 
 
 def main(argv: list[str] | None = None) -> int:
+    force_utf8()
     parser = argparse.ArgumentParser(
         prog="maj-data",
         description="Importe ou met à jour les débits des raccordements DEFAULT.",

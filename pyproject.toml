@@ -10,15 +10,13 @@ requires-python = ">=3.11"
 dependencies = [
     "requests",
     "pandas",
-    "numpy<2.4",
-    "shapely",
-    "pyproj",
+    "numpy",
     "scikit-learn",
     "scipy",
     "pyyaml",
     "lightgbm==4.6.0",
     "optuna==4.6.0",
-    "torch==2.12.1",  # installé CPU-only : pip install torch==2.12.1 --index-url https://download.pytorch.org/whl/cpu
+    "torch==2.12.1",  # build CPU ou CUDA selon la machine : --index-url .../whl/cpu ou .../whl/cu130
     "joblib",
     "matplotlib",
     "shap",
@@ -29,10 +27,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Délimitation de BV par MNT — lazy-import only (preprocessing/bv/delineation.py),
-# jamais exercé : les 2 centrales ont un shapefile connu. Lourd (GDAL/GEOS),
-# installé à la demande : pip install -e ".[gis]"
-gis = ["pysheds", "rasterio", "geopandas"]
 dev = ["pytest", "httpx"]   # httpx : requis par fastapi.testclient
 
 [tool.setuptools.packages.find]

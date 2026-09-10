@@ -17,7 +17,7 @@ def make_fixture(n=150):
             "debit_amont_B": np.full(n, np.nan),
             "precipitation_S1": np.cumsum(rng.uniform(0, 0.5, n)),
             "temperature_S1": 280.0,
-            "niveau0_S1": 1500.0,
+            "altitude_S1": 300.0,
         },
         index=index,
     )
@@ -33,7 +33,7 @@ def test_get_seq_cols_filters_sparse_amont_sorts_by_transit_and_detects_meteo():
     cols, seq_len = get_seq_cols(transit_cfg, df, horizon=8)
 
     # debit_amont_B est tout-NaN (<=100 non-NaN) -> exclue.
-    assert cols == ["debit_m3s", "debit_amont_A", "niveau0_S1", "precipitation_S1", "temperature_S1"]
+    assert cols == ["debit_m3s", "debit_amont_A", "precipitation_S1", "temperature_S1"]
     # seq_len = max(max_transit(5)*4, horizon(8)*3, 48) = max(20, 24, 48) = 48.
     assert seq_len == 48
 

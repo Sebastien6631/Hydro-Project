@@ -25,38 +25,19 @@ stages:
       - logs/dvc_markers/onboarding.json:
           cache: false
 
-  bv:
-    wdir: ../..
-    # Pas de --mnt ici : DVC ne résout ${...} que via vars:/params:, jamais
-    # l'environnement OS. onboarding-bv.py retombe déjà sur $PREVI_MNT via
-    # config.PREVI_MNT si --mnt est omis (même pattern que debit).
-    cmd: python cron/scripts/onboarding-bv.py batch
-    deps:
-      - centrales/REFERENCE/config-general.json
-      - centrales/REFERENCE/bv_rules.json
-      - centrales/REFERENCE/centrales_calibration.json
-      - centrales/REFERENCE/shapefiles/
-      - config/bv_mapping.yaml
-      - logs/dvc_markers/onboarding.json
-      - src/previ_r2d2/preprocessing/bv/
-    outs:
-      - logs/dvc_markers/bv.json:
-          cache: false
-
   data_preparation:
     wdir: ../..
     cmd: python cron/scripts/build-data-preparation.py
     deps:
       - logs/dvc_markers/debit.json
-      - logs/dvc_markers/bv.json
+      - logs/dvc_markers/onboarding.json
       - centrales/REFERENCE/config-general.json
       - src/previ_r2d2/preprocessing/data_preparation/
-      - src/previ_r2d2/preprocessing/meteo/nwp_reader.py
-    # Comme debit : la vraie donnée (débit déjà écrit par le stage amont) est
-    # hors DVC -- toujours forcer, le script gère lui-même son incrémental
-    # (reprise juste après le dernier point). Les colonnes météo restent
-    # figées (nwp_reader.py sans fichier NWP brut local à lire) jusqu'au
-    # sous-projet API météo publique.
+      - src/previ_r2d2/preprocessing/meteo/open_meteo.py
+    # Deux sources externes non trackées par DVC : Hub'Eau (débit, déjà écrit
+    # par le stage amont) et l'API météo, interrogée à chaque exécution. D'où
+    # always_changed -- le script gère lui-même son incrémental côté débit,
+    # et la météo est refetchée sur la fenêtre demandée.
     always_changed: true
     outs:
       - logs/dvc_markers/data_preparation.json:

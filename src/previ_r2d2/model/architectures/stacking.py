@@ -27,8 +27,8 @@ def slice_lgbm_multistep(oof_lgbm: np.ndarray, t_last: np.ndarray, horizon: int)
 
 
 def meteo_cols(df: pd.DataFrame) -> list[str]:
-    """Colonnes météo {variable}_S{n} (précipitation/température/niveau0), exclut lat/lon."""
-    pattern = re.compile(r"^(precipitation|temperature|niveau0)_S\d+$", re.IGNORECASE)
+    """Colonnes météo {variable}_S{n} (précipitation/température), exclut lat/lon/altitude."""
+    pattern = re.compile(r"^(precipitation|temperature)_S\d+$", re.IGNORECASE)
     return [c for c in df.columns if pattern.match(c)]
 
 

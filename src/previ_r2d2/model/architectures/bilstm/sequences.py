@@ -27,7 +27,7 @@ def get_seq_cols(transit_cfg: dict, df: pd.DataFrame, horizon: int) -> tuple[lis
 
     amont_cols_sorted = sorted(amont_cols, key=lambda c: max(transit_cfg[c].values()))
 
-    meteo_pattern = re.compile(r"^(precipitation|temperature|niveau0)_S\d+$", re.IGNORECASE)
+    meteo_pattern = re.compile(r"^(precipitation|temperature)_S\d+$", re.IGNORECASE)
     meteo_cols = sorted([c for c in df.columns if meteo_pattern.match(c)])
 
     cols = ["debit_m3s"] + amont_cols_sorted + meteo_cols

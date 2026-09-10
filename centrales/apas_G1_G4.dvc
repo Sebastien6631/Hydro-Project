@@ -1,6 +1,6 @@
 outs:
-- md5: c4ccc9fc33c525709bc79729aa5ae569.dir
-  size: 73270401
-  nfiles: 11
+- md5: 776a32b7c00bf8c8a19de9f72bcccf86.dir
+  size: 69540674
+  nfiles: 10
   hash: md5
   path: apas_G1_G4

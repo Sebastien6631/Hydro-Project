@@ -30,13 +30,11 @@ def test_to_hourly_returns_empty_series_unchanged():
 def test_build_dossier_assembles_debit_amont_meteo(tmp_path, monkeypatch):
     centrales_dir = tmp_path / "centrales"
     nas_data_root = tmp_path / "nas_data"
-    nas_meteo = tmp_path / "nas_meteo"
     (centrales_dir / "test_centrale").mkdir(parents=True)
     (nas_data_root / "test_centrale").mkdir(parents=True)
 
     monkeypatch.setattr(config, "CENTRALES_DIR", centrales_dir)
     monkeypatch.setattr(config, "NAS_DATA_ROOT", nas_data_root)
-    monkeypatch.setattr(config, "NAS_METEO", nas_meteo)
 
     # débit : station de référence (index tz-naive -- read_debit_csv renvoie
     # toujours un index tz-naive après tz_localize(None), comparer une borne
