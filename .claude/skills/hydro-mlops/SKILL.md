@@ -206,8 +206,8 @@ consulter, pas à copier tel quel).
 | 1.2 | **Docker / Compose** (env reproductible) | xh | ✅ | `phase1/docker` mergée sur `dev`+`main`. `docker compose build` + `docker compose run --rm app` → **340 passed**. Doc : README §Conteneurisation. |
 | 1.3 | Collecte + prétraitement des données | — | ✅ | cœur existant (dataset figé) |
 | 1.4 | Modèle de base + évaluation + tests | — | ✅ | |
-| 1.5 | Validation des données (contrat `data_preparation.csv`) | libre | ⬜ 🧪 | erreurs vs warnings, hand-rolled + stage DVC `validate` |
-| 1.6 | **API d'inférence** (FastAPI) | xh | ✅ | `phase1/api` → PR vers `dev`. `/health`, `/models`, `/predict` (dossier, h8, `source="frozen"`). Service `api` dans compose (port 8000). 5 tests boîte noire → **345 passed**. Doc : README §API d'inférence. |
+| 1.5 | **Validation des données** (contrat `data_preparation.csv`) | xh | ✅ | `phase1/validation` → PR vers `dev`. `validation.py` hand-rolled (erreurs vs warnings), `cron/scripts/validate-data.py`, stage DVC `validate` intercalé `data_preparation → validate → train`. 13 tests. Doc : README §Validation des données. |
+| 1.6 | **API d'inférence** (FastAPI) | xh | ✅ | Mergée sur `dev`+`main` (`6833661`). `/health`, `/models`, `/predict` (dossier, h8, `source="frozen"`). Service `api` dans compose (port 8000). 5 tests boîte noire. Doc : README §API d'inférence. |
 | 1.7 | RGPD / sécurité / éthique — amorce | équipe | ⬜ | données publiques, limites modèle, sécu API |
 | 1.8 | Document de cadrage (4–5 pages) | équipe | ⬜ | 1ʳᵉ livraison formelle |
 
