@@ -20,7 +20,12 @@ dependencies = [
     "joblib",
     "matplotlib",
     "shap",
+    "dvc>=3.0",
+    "dvc-http",       # remote DVC DagsHub en https
 ]
+
+[project.optional-dependencies]
+dev = ["pytest"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

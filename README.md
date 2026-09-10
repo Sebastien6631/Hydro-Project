@@ -11,9 +11,8 @@
 >   désormais des données statiques, versionnées via DVC.
 > - **hydrospot_stream** (`preprocessing/puissance/`) — source de puissance
 >   sur NAS ; `puissance.csv`/`puissance_horaire.csv` figés, idem.
-> - **FTP météo NWP** (`nwp_ftp.py`/`retention.py`) — seul `nwp_reader.py`
->   (parseur pur, sans réseau) est conservé ; les colonnes météo de
->   `data_preparation.csv` restent figées en attendant un sous-projet
+>   le 2026-09-10 par l'API Météo-France (`preprocessing/meteo/open_meteo.py`),
+>   qui rend le même contrat de colonnes sans fichiers locaux ; ancien sous-projet
 >   séparé de remplacement par une API météo publique.
 > - **automate** (rsync/SSH, `HAUTE_CHUTE`) — aucune des 2 centrales
 >   gardées n'utilise cette stratégie.
@@ -48,8 +47,8 @@ previ-R2-D2/
 │   │   ├── puissance/            # puissance_store.py seul : résolution du dossier hydrospot_stream
 │   │   │                        #   (mapping/heuristique, utilisée par la validation d'onboarding) --
 │   │   │                        #   import/fusion réels (NAS) retirés, puissance*.csv figés
-│   │   ├── meteo/                 # nwp_reader.py seul (parseur, FTP retiré)
-│   │   ├── data_preparation/      # Data_Preparation : débit + météo NWP brute + amont brut
+│   │   ├── meteo/                 # open_meteo.py seul (API Météo-France)
+│   │   ├── data_preparation/      # Data_Preparation : débit + météo API + amont brut
 │   │   └── bv/                   # onboarding BV : bassin versant, stations hydrométriques, transit
 │   ├── model/
 │   │   ├── features/             # et0, snow, meteo_hydro, debit_autoregressif, amont —
@@ -110,12 +109,9 @@ dvc pull   # données statiques des 2 centrales (config-general.json,
            # centrales/<dossier>/...) depuis le remote DVC local
 ```
 
-> **`--no-deps`** : `pyproject.toml` liste aussi `rasterio`/`geopandas`/
-> `pysheds` (délimitation du BV par MNT — jamais utilisée ici, les 3
-> centrales ont toutes un shapefile connu). On les saute volontairement
-> (lourds à installer). `.venv/bin/python` (utilisé par `dvc/*/dvc.yaml` et
-> quelques exemples ci-dessous) est un shim local qui pointe vers cet env —
-> pas indispensable si l'env conda est déjà activé, mais fonctionne alors
+> **Note** : les dépendances GIS ont disparu avec la chaîne de délimitation de
+> BV (supprimée le 2026-09-10, les `bv.json` étant figés). Les `dvc/*/dvc.yaml`
+> invoquent `python` : l'env conda doit donc être activé, `dvc repro` résolvant
 > uniquement depuis un shell qui lit un shebang (Git Bash, pas `cmd.exe`).
 
 ## Travail en équipe (DagsHub)
@@ -279,15 +275,8 @@ l'ancien pipeline de rétention, retiré dans cette version, cf. note en tête
 de fichier), et ses échéances longues (ex. 024) pointent alors vers des
 `flow_date` déjà couvertes par les jours suivants -- doublon d'horodatage
 bien réel dans l'archive brute (deux runs différents, pas une corruption).
-`nwp_reader.read_points` resample chaque point à l'heure avant de combiner
 (moyenne les doublons plutôt que de tenter un arbitrage, hors périmètre pour
 l'historique confirmé).
-
-**Piège rencontré (format NWP brut a changé dans le temps)** — les fichiers
-2021-2024 ont un header différent de 2025+ (`Latitude`/`Longitude`/`2t`
-capitalisés + une colonne `hour_index` en plus, vs `latitude`/`longitude`/`2T`
-minuscules côté récent) -- `nwp_reader.parse_nwp_file` normalise la casse des
-colonnes avant le rename pour accepter les deux formats.
 
 ```bash
 python cron/scripts/build-data-preparation.py                            # les 2 centrales
@@ -462,3 +451,23 @@ l'instant.
 ## Références
 
 - Hub'Eau hydrométrie : https://hubeau.eaufrance.fr/page/api-hydrometrie
+
+## Conteneurisation (Docker) — Phase 1
+
+Tout tourne dans un conteneur — plus besoin d'installer conda/Python en local.
+
+```bash
+cp .env.example .env      # renseigner DAGSHUB_USER + DAGSHUB_TOKEN + GIT_AUTHOR_*
+docker compose build     # construit l'image (~5-8 min la 1re fois)
+
+docker compose run --rm app                          # lance la suite de tests
+docker compose run --rm app dvc pull                 # données + modèles (DagsHub)
+docker compose run --rm app python run.py --train --dossier touzac_g2_G2 --horizon 8
+docker compose run --rm app bash                     # shell interactif
+```
+
+L'image contient Python 3.11, PyTorch CPU, LightGBM, DVC et le package
+`previ_r2d2`.
+
+Le code est **bind-monté** : une modif locale est vue immédiatement dans le
+conteneur, pas de rebuild sauf changement de dépendances.
