@@ -1,106 +1,68 @@
 schema: '2.0'
 stages:
   debit:
-    cmd: .venv/bin/python cron/scripts/maj-data.py
+    cmd: python cron/scripts/maj-data.py
     deps:
     - path: centrales/REFERENCE/config-general.json
       hash: md5
-      md5: 46d2e78e096a3d10180e578921c75082
-      size: 4458
+      md5: cd097d2171f338118b4c8f52b7abed9f
+      size: 3014
     - path: src/previ_r2d2/preprocessing/debit/
       hash: md5
-      md5: 613bb1e71a996523f5d37705b1cddf13.dir
-      size: 76259
-      nfiles: 20
+      md5: 099e310a52a285dd957012a070a5b1fa.dir
+      size: 49517
+      nfiles: 14
     outs:
     - path: logs/dvc_markers/debit.json
       hash: md5
-      md5: 74427d98333533f3b3bfa2a02c53c92e
-      size: 42
-  bv:
-    cmd: .venv/bin/python cron/scripts/onboarding-bv.py batch
-    deps:
-    - path: centrales/REFERENCE/bv_rules.json
-      hash: md5
-      md5: ee1138b2cc04051d341c45fbf24eee4b
-      size: 526
-    - path: centrales/REFERENCE/centrales_calibration.json
-      hash: md5
-      md5: 876b25e7bc9f43ea8446989d76cc9356
-      size: 384
-    - path: centrales/REFERENCE/config-general.json
-      hash: md5
-      md5: 46d2e78e096a3d10180e578921c75082
-      size: 4458
-    - path: centrales/REFERENCE/shapefiles/
-      hash: md5
-      md5: 44802b477bd8ad4f19f1e234766cfd81.dir
-      size: 200868
-      nfiles: 15
-    - path: config/bv_mapping.yaml
-      hash: md5
-      md5: 4bd9fc0c3e874e3db4e1286b7d3d11f5
-      size: 355
-    - path: logs/dvc_markers/onboarding.json
-      hash: md5
-      md5: a1d54395e827c2f4dc2461dd6aa76b71
-      size: 42
-    - path: src/previ_r2d2/preprocessing/bv/
-      hash: md5
-      md5: 59ee76063eaa0ccee0c3642998b62192.dir
-      size: 172086
-      nfiles: 16
-    outs:
-    - path: logs/dvc_markers/bv.json
-      hash: md5
-      md5: 618f5a479ec0178f8c072176f0340052
+      md5: 25eefc1d0c0a10301ffd8dcbe11b8d45
       size: 42
   onboarding_check:
-    cmd: .venv/bin/python cron/scripts/onboarding-check.py
+    cmd: python cron/scripts/onboarding-check.py
     deps:
     - path: centrales/REFERENCE/config-general.json
       hash: md5
-      md5: 46d2e78e096a3d10180e578921c75082
-      size: 4458
+      md5: cd097d2171f338118b4c8f52b7abed9f
+      size: 3014
     - path: logs/dvc_markers/debit.json
       hash: md5
-      md5: 74427d98333533f3b3bfa2a02c53c92e
+      md5: 25eefc1d0c0a10301ffd8dcbe11b8d45
       size: 42
     - path: src/previ_r2d2/preprocessing/onboarding/validation.py
       hash: md5
-      md5: f1ddfc9d7b299cf225b0036596d8a2e3
-      size: 2359
+      md5: 516e71d77003d8ff1c02129368bc2724
+      size: 2417
     outs:
     - path: logs/dvc_markers/onboarding.json
       hash: md5
-      md5: a1d54395e827c2f4dc2461dd6aa76b71
+      md5: 23a63c44bbcf23f8f27f29ca30638f8c
       size: 42
   data_preparation:
-    cmd: .venv/bin/python cron/scripts/build-data-preparation.py
+    cmd: python cron/scripts/build-data-preparation.py
     deps:
     - path: centrales/REFERENCE/config-general.json
       hash: md5
-      md5: 46d2e78e096a3d10180e578921c75082
-      size: 4458
-    - path: logs/dvc_markers/bv.json
-      hash: md5
-      md5: 618f5a479ec0178f8c072176f0340052
-      size: 42
+      md5: cd097d2171f338118b4c8f52b7abed9f
+      size: 3014
     - path: logs/dvc_markers/debit.json
       hash: md5
-      md5: 74427d98333533f3b3bfa2a02c53c92e
+      md5: 25eefc1d0c0a10301ffd8dcbe11b8d45
+      size: 42
+    - path: logs/dvc_markers/onboarding.json
+      hash: md5
+      md5: 23a63c44bbcf23f8f27f29ca30638f8c
       size: 42
     - path: src/previ_r2d2/preprocessing/data_preparation/
       hash: md5
-      md5: 93ae83d6de3fc2cf61ebb21c05289912.dir
-      size: 26204
-      nfiles: 15
-    - path: src/previ_r2d2/preprocessing/meteo/nwp_reader.py
+      md5: a3cbc54dd0ff3a533dfbc852c6fb2883.dir
+      size: 15578
+      nfiles: 10
+    - path: src/previ_r2d2/preprocessing/meteo/open_meteo.py
       hash: md5
-      md5: 3dacf90781efc5b006a3297dfcb1948a
-      size: 3320
+      md5: e2c6825db5e4f2b7a3265d45057a3038
+      size: 8085
     outs:
     - path: logs/dvc_markers/data_preparation.json
       hash: md5
-      md5: 717a52b6bb5aaa6ba90bd9d1182ae948
+      md5: 2e127cd82fa69ebbf93bbb978fa679fa
       size: 42

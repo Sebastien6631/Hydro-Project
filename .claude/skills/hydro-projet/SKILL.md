@@ -379,6 +379,35 @@ est hors production. `bv.json` reste LU par l'entraînement et la prédiction.
 Deux fonctions ont été rapatriées avant la suppression : `haversine_km` dans
 `model/features/meteo_hydro.py` et `bv_json_path` inliné dans `dossier_window.py`.
 
+### Pièges rencontrés en rebranchant la chaîne (2026-09-10)
+
+- **Console Windows en cp1252** : `maj-data.py` mourait sur son propre `print`
+  d'en-tête (`→`, `—`, `✗` sont hors cp1252), donc AUCUN débit n'était importé.
+  `common/console.py::force_utf8()` est appelé en tête du `main()` des 5
+  scripts cron. Corriger les caractères un par un ne tiendrait pas.
+- **`build-data-preparation` FUSIONNE avec le CSV existant** : les anciennes
+  colonnes survivent (`niveau0` réapparaissait) et un point météo en échec
+  garde ses valeurs du run précédent. Pour un changement de schéma, SUPPRIMER
+  les `data_preparation.csv` avant `--full-history`.
+- **L'API rend l'axe temporel demandé EN ENTIER**, avec des `null` là où le
+  modèle n'a rien (`past_days=92` sur un modèle qui n'archive que 60 jours).
+  Sans `dropna` avant fusion, ces `null` gagnent le recouvrement (`keep="last"`)
+  et EFFACENT les vraies valeurs de l'archive -- 32 jours perdus en silence.
+- **`FULL_HISTORY_START` doit valoir la date de début de la météo.** Le débit
+  remonte à 2021, mais une ligne sans météo est inexploitable : démarrer avant
+  décale le split 80/20 vers un passé vide. Mesuré : meta-learner à 1175
+  échantillons au lieu de ~19 650, `kge_stacking` à **-6.6e7**.
+- **`dvc repro` ne nettoie pas `dvc.lock`** : il met à jour les stages présents
+  dans `dvc.yaml` mais laisse les entrées orphelines (le stage `bv` supprimé y
+  survivait). Retirer le bloc à la main après toute suppression de stage.
+- **`dvc repro` marche à nouveau sur Windows** depuis que les `cmd` utilisent
+  `python` et non le shim `.venv/bin/python` -- à condition que l'env conda
+  soit activé (le sous-shell de DVC résout `python` via le PATH).
+- **Changer le schéma météo casse les anciens modèles** : le BiLSTM attend un
+  `n_features` figé (`[256, 29]` contre `[256, 22]`), donc
+  `evaluate_candidate_vs_production` lève un `size mismatch`. Retirer les
+  modèles incompatibles de `models/` fait basculer en `first_training`.
+
 ## Pièges connus (toujours valides après simplification)
 
 - **`_read_source` (`puissance_store.py`, conservé)** : vérifier
