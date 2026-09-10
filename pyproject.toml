@@ -24,6 +24,8 @@ dependencies = [
     "shap",
     "dvc>=3.0",
     "dvc-http",       # remote DVC DagsHub en https
+    "fastapi",        # API d'inférence (phase 1)
+    "uvicorn",
 ]
 
 [project.optional-dependencies]
@@ -31,7 +33,7 @@ dependencies = [
 # jamais exercé : les 2 centrales ont un shapefile connu. Lourd (GDAL/GEOS),
 # installé à la demande : pip install -e ".[gis]"
 gis = ["pysheds", "rasterio", "geopandas"]
-dev = ["pytest"]
+dev = ["pytest", "httpx"]   # httpx : requis par fastapi.testclient
 
 [tool.setuptools.packages.find]
 where = ["src"]
