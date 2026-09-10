@@ -10,18 +10,13 @@ requires-python = ">=3.11"
 dependencies = [
     "requests",
     "pandas",
-    "numpy<2.4",  # pysheds 0.5 (dernière version dispo) utilise np.in1d, supprimé en numpy 2.4
-    "pysheds",
-    "rasterio",
-    "geopandas",
-    "shapely",
-    "pyproj",
+    "numpy",
     "scikit-learn",
     "scipy",
     "pyyaml",
     "lightgbm==4.6.0",
     "optuna==4.6.0",
-    "torch==2.12.1",  # installé CPU-only : pip install torch==2.12.1 --index-url https://download.pytorch.org/whl/cpu
+    "torch==2.12.1",  # build CPU ou CUDA selon la machine : --index-url .../whl/cpu ou .../whl/cu130
     "joblib",
     "matplotlib",
     "shap",

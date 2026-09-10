@@ -19,10 +19,18 @@ cette API, et l'archive ERA5 non plus, donc il serait impossible de
 reconstituer l'historique. Les features utilisent désormais la température
 réelle corrigée de l'altitude -- cf. `model/features/snow.py`.
 
-Deux points d'accès complémentaires : l'archive (ERA5, depuis 1940, mais en
-retard de ~5 jours sur le temps réel) et la prévision (jusqu'à 92 jours de
-passé + les jours à venir). Une fenêtre longue traverse les deux ; la
-prévision l'emporte sur le recouvrement, c'est la donnée la plus fraîche.
+Deux points d'accès complémentaires, **tous deux Météo-France** : l'archive des
+prévisions passées (depuis le 2022-11-15) et la prévision courante (92 jours de
+passé + les jours à venir). Une fenêtre longue traverse les deux ; la prévision
+l'emporte sur le recouvrement, c'est la donnée la plus fraîche.
+
+**Pourquoi pas l'archive ERA5**, qui remonterait pourtant à 1940 : mesuré sur
+504 h de recouvrement, elle donne TROIS FOIS plus de pluie que Météo-France
+(0.136 vs 0.049 mm/h, corrélation 0.21) pour une température quasi identique
+(+0.31 °C, corrélation 0.95). Un modèle entraîné sur l'historique ERA5 puis
+servi en prévision Météo-France sous-estimerait donc systématiquement les
+crues -- silencieusement, la pluie étant le moteur du modèle. On préfère
+3,8 ans homogènes à 5,6 ans discontinus.
 """
 
 from __future__ import annotations
@@ -35,13 +43,16 @@ import requests
 logger = logging.getLogger(__name__)
 
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
-ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
+ARCHIVE_URL = "https://historical-forecast-api.open-meteo.com/v1/forecast"
+# Début de l'archive des prévisions Météo-France chez Open-Meteo (bissecté :
+# vide au 2022-11-08, disponible au 2022-11-15).
+ARCHIVE_MIN_DATE = pd.Timestamp("2022-11-15")
 HOURLY_VARS = "temperature_2m,precipitation"
 # Météo-France en priorité (AROME 1.5 km sur la France), repli automatique de
 # l'API sur ARPEGE hors couverture AROME.
 MODELS = "meteofrance_seamless"
 FORECAST_PAST_DAYS_MAX = 92
-ARCHIVE_LAG_DAYS = 6  # l'archive ERA5 n'est pas disponible sur les jours récents
+ARCHIVE_LAG_DAYS = 2  # l'archive des prévisions passées suit le temps réel à ~2 jours
 TIMEOUT_S = 60
 KELVIN = 273.15
 
@@ -74,11 +85,12 @@ def _fetch_point(lat: float, lon: float, start: pd.Timestamp, end: pd.Timestamp)
     today = pd.Timestamp.now("UTC").tz_localize(None).normalize()
     frames, elevation = [], None
 
+    archive_start = max(start, ARCHIVE_MIN_DATE)
     archive_end = min(end, today - pd.Timedelta(days=ARCHIVE_LAG_DAYS))
-    if start < archive_end:
+    if archive_start < archive_end:
         data = _get(ARCHIVE_URL, {
-            **base,
-            "start_date": start.strftime("%Y-%m-%d"),
+            **base, "models": MODELS,
+            "start_date": archive_start.strftime("%Y-%m-%d"),
             "end_date": archive_end.strftime("%Y-%m-%d"),
         })
         df = _frame(data)

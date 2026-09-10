@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """build-data-preparation — construit/met à jour le Data_Preparation (débit +
-météo NWP brute + amont brut) par centrale, pour l'entraînement du modèle
+météo + amont brut) par centrale, pour l'entraînement du modèle
 hybride meta.
 
 Périmètre historique confirmé (J-1 et avant) uniquement -- pas la fenêtre

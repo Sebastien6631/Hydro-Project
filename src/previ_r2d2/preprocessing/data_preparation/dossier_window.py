@@ -1,4 +1,4 @@
-"""Assemblage débit + amont + météo NWP brute d'une centrale sur une
+"""Assemblage débit + amont + météo (API Météo-France) d'une centrale sur une
 fenêtre [start, end] arbitraire -- extrait de build-data-preparation.py
 pour être réutilisé par le pipeline de prédiction (fenêtre future) sans
 dupliquer la logique d'assemblage."""
@@ -10,7 +10,6 @@ import json
 import pandas as pd
 
 from previ_r2d2.common import config
-from previ_r2d2.preprocessing.bv.bv_builder import bv_json_path
 from previ_r2d2.preprocessing.data_preparation.amont_source import amont_series
 from previ_r2d2.preprocessing.data_preparation.debit_source import debit_series
 from previ_r2d2.preprocessing.meteo.open_meteo import read_points
@@ -22,12 +21,12 @@ def to_hourly(s: pd.Series) -> pd.Series:
 
 
 def build_dossier(rec: dict, start: pd.Timestamp, end: pd.Timestamp) -> pd.DataFrame:
-    """Assemble débit + amont + météo NWP brute d'une centrale sur [start, end].
+    """Assemble débit + amont + météo d'une centrale sur [start, end].
 
     `start` est relevé au premier point réel du débit (si postérieur) avant de
     lire amont/météo -- le débit est la variable cible, une donnée météo sans
     débit en face n'a aucun intérêt, et ça évite de scanner des années de
-    fichiers NWP pour rien."""
+    requêtes météo pour rien."""
     dossier = rec["dossier"]
     debit = to_hourly(debit_series(rec))
     if not debit.empty:
@@ -36,7 +35,7 @@ def build_dossier(rec: dict, start: pd.Timestamp, end: pd.Timestamp) -> pd.DataF
 
     columns.update({name: to_hourly(s) for name, s in amont_series(rec).items()})
 
-    bv_path = bv_json_path(config.CENTRALES_DIR, dossier)
+    bv_path = config.CENTRALES_DIR / dossier / "bv.json"
     if bv_path.exists():
         bv = json.loads(bv_path.read_text(encoding="utf-8"))
         points = bv.get("stations_meteo_nwp", [])

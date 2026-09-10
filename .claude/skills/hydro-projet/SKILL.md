@@ -73,13 +73,12 @@ Hydro-Project/
 │   │   │                         #   station_store.py, debit_csv.py (read_debit_csv)
 │   │   ├── puissance/             # puissance_store.py TRIMMÉ (mapping seulement,
 │   │   │                         #   export_puissance_csv/cleaning.py/consignes.py supprimés)
-│   │   ├── meteo/                 # nwp_reader.py SEUL (nwp_ftp.py/retention.py supprimés)
+│   │   ├── meteo/                 # open_meteo.py SEUL (API Météo-France ; nwp_reader.py
+│   │   │                         #   supprimé avec les fichiers NWP, cf. section Météo)
 │   │   ├── data_preparation/      # dossier_window.py (build_dossier), data_preparation_csv.py
 │   │   ├── onboarding/            # validation.py (missing_fields, DEFAULT seulement -- pas
 │   │   │                         #   de HAUTE_CHUTE, load_sync_config retiré)
-│   │   └── bv/                   # rules.py (load_rules seul -- fit_rules/save_rules retirés,
-│   │                             #     bv_rules.json est versionné), delineation.py,
-│   │                             #     bv_builder.py, transit.py (géométrique pur)
+│   │   (bv/ SUPPRIMÉ -- toute la chaîne de création du bv.json, figée hors prod)
 │   ├── model/                     # features/, architectures/{lightgbm,bilstm,stacking},
 │   │                             #   pipeline/{orchestrator,predict_orchestrator,promotion,
 │   │                             #     hydraulic, split, oof_cache, stacking_fit, ...}
@@ -88,13 +87,13 @@ Hydro-Project/
 │   ├── cli.py
 │   └── postprocessing/           # archive.py (ARCHIVE_ROOT, plus NAS_ARCHIVE_ROOT)
 │                                  #   api/ et archiving/ SUPPRIMÉS (packages vides jamais importés)
-├── cron/scripts/                 # maj-data.py, onboarding-bv.py, onboarding-check.py,
+├── cron/scripts/                 # maj-data.py, onboarding-check.py,
 │                                  #   build-data-preparation.py, train.py, predict-archive.py
 │                                  #   (majdata-memo/maj-automate/maj-puissance/maj-meteo/
 │                                  #    clean-meteo/daily-sync-report SUPPRIMÉS ; cron/wrappers/
 │                                  #    SUPPRIMÉ -- lancement manuel uniquement)
 ├── dvc/
-│   ├── preprocessing/dvc.yaml    # 4 stages : debit -> onboarding_check -> bv -> data_preparation
+│   ├── preprocessing/dvc.yaml    # 3 stages : debit -> onboarding_check -> data_preparation
 │   └── postprocessing/dvc.yaml   # predict_archive (inchangé)
 ├── config/
 │   ├── centrales/<dossier>/      # vide, .gitkeep (jamais peuplé)
@@ -188,15 +187,14 @@ passe jamais `source=` explicitement.
 ## Onboarding BV — idempotence
 
 `bv.json` déjà calculé pour les 2 centrales (shapefile connu pour chacune,
-jamais le repli MNT). `onboarding-bv.py batch` est un no-op tant qu'un
 `bv.json` existe déjà (`--force` pour recalculer). Le repli géométrique pur
 (plus de préférence pour la grille NWP 2021, fonction retirée) s'applique
 systématiquement si on relance en mode `--force` sans shapefile.
 
-## Pipeline DVC (`dvc/preprocessing/dvc.yaml`, 4 stages)
+## Pipeline DVC (`dvc/preprocessing/dvc.yaml`, 3 stages)
 
 ```
-debit (Hub'Eau, always_changed) ──> onboarding_check (always_changed) ──> bv ──> data_preparation (always_changed)
+debit (Hub'Eau, always_changed) ──> onboarding_check (always_changed) ──> data_preparation (always_changed)
 ```
 
 `data_preparation` ne dépend plus du marker `puissance` (stage supprimé,
@@ -344,6 +342,43 @@ retenu est loggé au lancement.
 - **LightGBM reste 100% CPU** — jamais buildé pour GPU ici. Le GPU n'accélère
   que le BiLSTM.
 
+## Météo : API Météo-France (2026-09-10)
+
+Les fichiers NWP ECMWF n'étaient plus alimentés (FTP retiré) : `build_dossier`
+rendait une fenêtre SANS aucune colonne `_S`, `station_count` valait 0 et
+`compute_meteo_hydro_features` mourait sur `pd.concat([])`. La prédiction
+`source="live"` était donc cassée ; seul `"frozen"` marchait.
+
+`preprocessing/meteo/open_meteo.py` interroge Open-Meteo (modèles
+Météo-France), sans clé d'API ni nouvelle dépendance, **un appel par point**
+des 7 `stations_meteo_nwp` de `bv.json`.
+
+**Trois pièges, tous vérifiés par test** :
+- `temperature_S{i}` doit être en **KELVIN** (`et0.py` fait `t - 273.15`) ;
+  l'API rend des °C.
+- `precipitation_S{i}` doit être **CUMULÉE** (`snow.py` fait
+  `.diff(1).clip(lower=0)`) ; l'API rend des incréments horaires.
+- **Ne PAS utiliser l'archive ERA5** malgré ses 5,6 ans : mesurée sur 504 h de
+  recouvrement, elle donne TROIS FOIS plus de pluie que Météo-France
+  (0.136 vs 0.049 mm/h, corr 0.21) pour une température quasi identique
+  (+0.31 °C, corr 0.95). On utilise `historical-forecast-api` en Météo-France,
+  homogène, depuis le **2022-11-15** (bissecté) : 3,8 ans sans trou.
+
+**`niveau0` (isotherme 0°) n'existe plus** : aucun modèle Météo-France ne
+l'expose, ni l'archive ERA5, donc l'historique serait irreconstituable. Il
+servait à la partition pluie/neige ET à `t_moyen`. Les deux passent désormais
+par `snow.bv_temperature` : température 2 m réelle corrigée de l'écart
+d'altitude point -> bassin (`altitude_S{i}`, rendue par l'API). Sémantique
+identique (`t_moyen > 0` <=> ancien « isotherme au-dessus du BV »), et les
+tests à valeurs calculées à la main passent inchangés, ce qui le prouve.
+
+**Toute la chaîne de création du `bv.json` a été supprimée** (`preprocessing/bv/`,
+`centrales_calibration.json`, et les dépendances `pysheds`/`rasterio`/
+`geopandas`/`shapely`/`pyproj`) : les `bv.json` des 2 centrales sont figés, on
+est hors production. `bv.json` reste LU par l'entraînement et la prédiction.
+Deux fonctions ont été rapatriées avant la suppression : `haversine_km` dans
+`model/features/meteo_hydro.py` et `bv_json_path` inliné dans `dossier_window.py`.
+
 ## Pièges connus (toujours valides après simplification)
 
 - **`_read_source` (`puissance_store.py`, conservé)** : vérifier
@@ -413,7 +448,6 @@ retenu est loggé au lancement.
 ```bash
 python cron/scripts/maj-data.py --dossier apas_G1_G4      # test ciblé débit (Hub'Eau réel)
 python cron/scripts/onboarding-check.py                   # tous les raccordements (pas de --dossier)
-python cron/scripts/onboarding-bv.py single --dossier apas_G1_G4  # no-op si bv.json déjà présent
 python cron/scripts/build-data-preparation.py --dossier apas_G1_G4
 python cron/scripts/train.py --dossier touzac_g2_G2 --horizon 8 --force  # entraînement réel réduit
 python cron/scripts/predict-archive.py                     # prédit + archive toutes les centrales avec modèle en prod

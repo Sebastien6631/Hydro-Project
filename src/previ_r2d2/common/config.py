@@ -20,8 +20,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[3]
 
 # Sortie OneGate + bv.json par dossier, et fichiers de référence partagés
-# (config-general.json, bv_rules.json, centrales_calibration.json,
-# shapefiles/, files/) sous centrales/REFERENCE/.
+# (config-general.json) sous centrales/REFERENCE/.
 CENTRALES_DIR = ROOT / "centrales"
 REFERENCE_DIR = CENTRALES_DIR / "REFERENCE"
 
@@ -62,14 +61,3 @@ ARCHIVE_ROOT = ROOT / "ARCHIVE"
 # Racine hydrospot_stream (source de puissance, déjà utilisée par Previ_v2).
 PUISSANCE_SOURCE_ROOT = Path(_get("PREVI_PUISSANCE_SOURCE_ROOT", ""))
 
-# --- Météo NWP (lecture de fichiers bruts) ---------------------------------
-# Racine où seraient mirorrés les fichiers météo NWP bruts (acquisition FTP
-# retirée -- hors périmètre du projet de cours, cf. nwp_ftp.py supprimé).
-# `nwp_reader.read_points` renvoie un DataFrame vide si ce dossier est
-# absent/vide -- jamais de crash, dégradation gracieuse en attendant le
-# sous-projet "API météo publique".
-
-# --- Onboarding BV (délimitation de bassin versant) -----------------------
-# MNT France entière (GeoTIFF, EPSG:4326 ou Lambert93) utilisé pour délimiter
-# les bassins versants amont. Fichier volumineux, jamais versionné.
-PREVI_MNT = Path(_get("PREVI_MNT", ""))

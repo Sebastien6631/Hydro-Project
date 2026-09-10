@@ -39,7 +39,6 @@ previ-R2-D2/
 ├── run.py                        # CLI entraînement/prédiction du modèle hybride (--train ...)
 ├── config/
 │   ├── centrales/                # réservé (vide, .gitkeep) -- inutilisé dans cette version
-│   ├── bv_mapping.yaml          # dossier -> nom de shapefile BV (centrales/REFERENCE/shapefiles/)
 │   └── puissance_mapping.yaml   # dossier -> nom de dossier hydrospot_stream (repli explicite, cf. ci-dessous)
 ├── src/previ_r2d2/
 │   ├── common/                  # config, secret_config (3 secrets restants), dvc_markers
@@ -74,7 +73,7 @@ previ-R2-D2/
 │   └── hybrid_candidate/<dossier>/h<horizon>/ # candidat en cours d'évaluation par train.py (auto)
 ├── ARCHIVE/                        # archive locale des prévisions horaires (gitignored)
 ├── cron/
-│   └── scripts/                  # CLI minces (maj-data, onboarding-check, onboarding-bv,
+│   └── scripts/                  # CLI minces (maj-data, onboarding-check,
 │                                  #   build-data-preparation, train, predict-archive) --
 │                                  #   lancement manuel, pas de cron/wrappers/ (retiré, cf. note en tête)
 ├── dvc/
@@ -84,8 +83,7 @@ previ-R2-D2/
 ├── tests/                         # miroir de src/previ_r2d2/
 ├── centrales/                     # données des 2 centrales -- <dossier>/ versionné via DVC
 │   │                              #   (remote local ../remote_dvc, cf. <dossier>.dvc à la racine)
-│   ├── REFERENCE/                 # bv_rules.json + centrales_calibration.json (git-tracké) ;
-│   │                              #   config-general.json + shapefiles/ versionnés via DVC ;
+│   ├── REFERENCE/                 # config-general.json, versionné via DVC ;
 │   │                              #   files/ (gitignoré, non utilisé dans cette version)
 │   └── <dossier>/                 # config-raccordement.json, *.csv, bv.json, data_preparation.csv,
 │                                  #   prevision.json, enchere.json
@@ -109,7 +107,7 @@ pip install requests pandas "numpy<2.4" scikit-learn scipy pyyaml \
 pip install -e . --no-deps   # --no-deps : cf. note ci-dessous
 
 dvc pull   # données statiques des 2 centrales (config-general.json,
-           # shapefiles/, centrales/<dossier>/...) depuis le remote DVC local
+           # centrales/<dossier>/...) depuis le remote DVC local
 ```
 
 > **`--no-deps`** : `pyproject.toml` liste aussi `rasterio`/`geopandas`/
@@ -128,7 +126,7 @@ Le dépôt (code + données) est partagé via [DagsHub](https://dagshub.com/Seba
 ```bash
 git clone https://dagshub.com/Sebastien6631/Hydro-Projet.git
 cd Hydro-Projet
-dvc pull   # récupère les données (config-general.json, shapefiles/,
+dvc pull   # récupère les données (config-general.json,
            # centrales/<dossier>/..., modèles entraînés)
 ```
 
@@ -156,7 +154,6 @@ local, **non versionné**) :
 ```python
 PREVI_PUISSANCE_SOURCE_ROOT = "..." # racine hydrospot_stream (utilisée seulement pour la résolution
                                      #   du mapping puissance -- import/fusion réels retirés)
-PREVI_MNT = "..."                   # GeoTIFF MNT France entière (repli délimitation BV)
 PREVI_NAS_METEO = "..."             # racine des fichiers météo NWP bruts (acquisition FTP retirée --
                                      #   dossier vide/absent = colonnes météo vides, dégradation gracieuse)
 ```
@@ -233,48 +230,6 @@ python cron/scripts/maj-data.py --dossier apas_G1_G4   # test ciblé
 python cron/scripts/maj-data.py --end 03/07/2026
 ```
 
-### `onboarding-bv.py` — caractérisation du bassin versant
-
-Pour chaque centrale (regroupées par site physique quand plusieurs dossiers
-partagent le même `centrale_uuid`), mesure le bassin versant amont — via
-shapefile connu (`config/bv_mapping.yaml`) ou repli par délimitation MNT
-depuis le point exutoire — calcule les paramètres de calage (`K_base`,
-`exposition`, `kc_unit`), les points météo NWP représentatifs, les
-coordonnées Hub'Eau des stations hydrométriques (référence + amont) et le
-temps de transit hydraulique par cross-corrélation saisonnière
-(amont→référence : débit vs débit ; référence→centrale : débit vs
-`power_output` nettoyé, avec repli géométrique par ratio de distances si la
-corrélation directe est peu fiable). Écrit `centrales/<dossier>/bv.json`.
-**Idempotent** : un `bv.json` déjà présent n'est jamais retraité sans
-`--force` — voir `src/previ_r2d2/preprocessing/bv/README.md` pour le détail
-du schéma de sortie et de la logique de repli.
-
-**Sélection des points météo NWP (`stations_meteo_nwp`)** — dans cette
-version, `select_meteo_points` (`preprocessing/bv/delineation.py`) est
-purement géométrique : génère les nœuds de grille NWP (pas 0.1°) dans
-l'emprise du bassin versant, garde ceux dont le centre tombe dans le
-polygone, puis, s'il y en a plus que `MAX_METEO_POINTS`, réduit par
-k-means sur (latitude, longitude, altitude) et retient le nœud le plus
-proche de chaque centroïde. La fonction accepte toujours un paramètre
-optionnel `historical_points` (préférence pour des points de grille
-couverts dès une période de référence antérieure, utile quand la grille
-NWP s'est densifiée avec le temps) mais plus aucun appelant ne le
-renseigne dans cette version — la préférence historique est donc un
-chemin mort en pratique, la sélection observée est toujours la
-purement géométrique. **Limite connue (héritée de la production)** :
-certaines régions n'étaient pas couvertes par la grille NWP avant une
-certaine date ; pour un raccordement dont le bassin versant tombe dans
-une telle région, `data_preparation.csv` peut avoir une portion de son
-historique débit sans météo en face (gap réel côté fournisseur, rien à
-corriger côté code) — cela ne concerne aucune des 2 centrales gardées
-dans ce dépôt.
-
-```bash
-python cron/scripts/onboarding-bv.py batch                              # toutes les centrales
-python cron/scripts/onboarding-bv.py batch --force                      # recalcule même l'existant
-python cron/scripts/onboarding-bv.py single --dossier apas_G1_G4        # test ciblé
-```
-
 ### `build-data-preparation.py` — Data_Preparation (débit + météo + amont brut)
 
 Construit/met à jour, pour chaque centrale, un CSV historique
@@ -297,7 +252,6 @@ météo publique n'est pas ajouté.
 - Amont : colonne `debit_amont` (un seul) ou `debit_amont_{code}` (plusieurs,
   dédupliqués), nommage repris de `lightgbm_model.py` (Previ_v2).
 - Météo : points de `bv.json.stations_meteo_nwp` (déjà calculés par
-  `onboarding-bv.py`), matching exact `(latitude, longitude)` contre les
   fichiers NWP bruts -- température/précipitation/niveau0° gardés bruts
   (Kelvin, cumul non diffé), la transformation en feature est hors périmètre.
 - Historique confirmé (J-1 et avant) uniquement -- la fenêtre temps
@@ -341,7 +295,7 @@ python cron/scripts/build-data-preparation.py --dossier apas_G1_G4       # test 
 python cron/scripts/build-data-preparation.py --full-history             # backfill complet
 ```
 
-### `onboarding-check.py` — validation d'un raccordement avant `bv`
+### `onboarding-check.py` — validation d'un raccordement
 
 Pour chaque raccordement sans `bv.json` encore (pas onboardé), valide son
 `config-raccordement.json` (`preprocessing/onboarding/validation.py::missing_fields`)
@@ -495,7 +449,6 @@ Chaque paire (dossier, horizon) échoue indépendamment en mode
 ```bash
 python cron/scripts/maj-data.py                             # 1. importe/complète les débits (Hub'Eau)
 python cron/scripts/onboarding-check.py                     # 2. valide les raccordements pas encore onboardés
-python cron/scripts/onboarding-bv.py batch                  # 3. caractérise le BV + stations/transit (no-op si déjà fait)
 python cron/scripts/train.py --dossier apas_G1_G4 --horizon 8 --promote   # 4. entraînement + promotion conditionnelle
 python cron/scripts/predict-archive.py                      # 6. archive + prédit la nouvelle heure
 ```
