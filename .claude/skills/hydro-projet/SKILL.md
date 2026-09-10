@@ -30,9 +30,9 @@ machine qui a fait la simplification).
   mapping (`preprocessing/puissance/puissance_store.py::find_source_folder`/
   `load_puissance_mapping`) a survécu, car `preprocessing/onboarding/
   validation.py` (gardé) en dépend.
-- **FTP météo NWP** (`nwp_ftp.py`/`retention.py`) — seul
-  `preprocessing/meteo/nwp_reader.py` (parseur pur, sans réseau) a survécu,
-  utilisé par `bv_builder.py` et `data_preparation/dossier_window.py`.
+- **FTP météo NWP** (`nwp_ftp.py`/`retention.py`/`nwp_reader.py`) — remplacé
+  le 2026-09-10 par `preprocessing/meteo/open_meteo.py` (API Météo-France),
+  qui rend le même contrat de colonnes sans fichier local. Cf. section Météo.
 - **Mail/digest quotidien** (`mailer.py`/`daily_report.py`) et **MLflow**
   (`mlflow_tracker.py`) — retirés entièrement. MLflow est **volontairement**
   à refaire proprement comme partie du travail de cours, pas juste "pas
@@ -73,13 +73,12 @@ Hydro-Project/
 │   │   │                         #   station_store.py, debit_csv.py (read_debit_csv)
 │   │   ├── puissance/             # puissance_store.py TRIMMÉ (mapping seulement,
 │   │   │                         #   export_puissance_csv/cleaning.py/consignes.py supprimés)
-│   │   ├── meteo/                 # nwp_reader.py SEUL (nwp_ftp.py/retention.py supprimés)
+│   │   ├── meteo/                 # open_meteo.py SEUL (API Météo-France ; nwp_reader.py
+│   │   │                         #   supprimé avec les fichiers NWP, cf. section Météo)
 │   │   ├── data_preparation/      # dossier_window.py (build_dossier), data_preparation_csv.py
 │   │   ├── onboarding/            # validation.py (missing_fields, DEFAULT seulement -- pas
 │   │   │                         #   de HAUTE_CHUTE, load_sync_config retiré)
-│   │   └── bv/                   # rules.py (load_rules seul -- fit_rules/save_rules retirés,
-│   │                             #     bv_rules.json est versionné), delineation.py,
-│   │                             #     bv_builder.py, transit.py (géométrique pur)
+│   │   (bv/ SUPPRIMÉ -- toute la chaîne de création du bv.json, figée hors prod)
 │   ├── model/                     # features/, architectures/{lightgbm,bilstm,stacking},
 │   │                             #   pipeline/{orchestrator,predict_orchestrator,promotion,
 │   │                             #     hydraulic, split, oof_cache, stacking_fit, ...}
@@ -88,13 +87,13 @@ Hydro-Project/
 │   ├── cli.py
 │   └── postprocessing/           # archive.py (ARCHIVE_ROOT, plus NAS_ARCHIVE_ROOT)
 │                                  #   api/ et archiving/ SUPPRIMÉS (packages vides jamais importés)
-├── cron/scripts/                 # maj-data.py, onboarding-bv.py, onboarding-check.py,
+├── cron/scripts/                 # maj-data.py, onboarding-check.py,
 │                                  #   build-data-preparation.py, train.py, predict-archive.py
 │                                  #   (majdata-memo/maj-automate/maj-puissance/maj-meteo/
 │                                  #    clean-meteo/daily-sync-report SUPPRIMÉS ; cron/wrappers/
 │                                  #    SUPPRIMÉ -- lancement manuel uniquement)
 ├── dvc/
-│   ├── preprocessing/dvc.yaml    # 4 stages : debit -> onboarding_check -> bv -> data_preparation
+│   ├── preprocessing/dvc.yaml    # 3 stages : debit -> onboarding_check -> data_preparation
 │   └── postprocessing/dvc.yaml   # predict_archive (inchangé)
 ├── config/
 │   ├── centrales/<dossier>/      # vide, .gitkeep (jamais peuplé)
@@ -188,23 +187,34 @@ passe jamais `source=` explicitement.
 ## Onboarding BV — idempotence
 
 `bv.json` déjà calculé pour les 2 centrales (shapefile connu pour chacune,
-jamais le repli MNT). `onboarding-bv.py batch` est un no-op tant qu'un
 `bv.json` existe déjà (`--force` pour recalculer). Le repli géométrique pur
 (plus de préférence pour la grille NWP 2021, fonction retirée) s'applique
 systématiquement si on relance en mode `--force` sans shapefile.
 
-## Pipeline DVC (`dvc/preprocessing/dvc.yaml`, 4 stages)
+## Pipeline DVC (3 fichiers, 5 stages)
 
 ```
-debit (Hub'Eau, always_changed) ──> onboarding_check (always_changed) ──> bv ──> data_preparation (always_changed)
+debit ──> onboarding_check ──> data_preparation      (dvc/preprocessing)
+                                      │
+                                      v
+                                    train                (dvc/model)
+                                      │  promote_model dvc-add models/<d>/h<h>
+                                      v
+                          models/<d>/h8.dvc ──> predict_archive   (dvc/postprocessing)
+
+`predict_archive` dépend des MODÈLES, jamais du marker d'entraînement : `train`
+est `always_changed`, donc en dépendre ferait ré-entraîner avant chaque
+prédiction horaire (bug de prod corrigé par ab75b0f, à ne pas réintroduire).
+Il n'y a donc PAS d'arête directe `train -> predict_archive` : `train` déclare
+comme sortie son seul marker, les modèles étant dvc-add par `promote_model`.
 ```
 
 `data_preparation` ne dépend plus du marker `puissance` (stage supprimé,
-donnée figée sans remplacement de suivi). Dépend de
-`src/previ_r2d2/preprocessing/meteo/nwp_reader.py` spécifiquement (pas tout
-le dossier `meteo/`, qui n'a plus que ce fichier). Les colonnes météo de
-`data_preparation.csv` restent figées (plus de FTP pour les rallonger) ;
-seules débit/amont sont réellement rafraîchies par ce stage.
+donnée figée sans remplacement de suivi). Il dépend de
+`preprocessing/meteo/open_meteo.py` : la météo n'est plus figée, elle est
+refetchée sur la fenêtre demandée à chaque exécution, au même titre que le
+débit. `FULL_HISTORY_START` vaut `open_meteo.ARCHIVE_MIN_DATE` — démarrer
+avant la météo disponible sabote le split (cf. pièges).
 
 `dvc/model/dvc.yaml` a été SUPPRIMÉ le 2026-09-09 (ses 2 seuls stages,
 train_new/train_monthly, retirés faute de cron pour les déclencher) --
@@ -344,6 +354,72 @@ retenu est loggé au lancement.
 - **LightGBM reste 100% CPU** — jamais buildé pour GPU ici. Le GPU n'accélère
   que le BiLSTM.
 
+## Météo : API Météo-France (2026-09-10)
+
+Les fichiers NWP ECMWF n'étaient plus alimentés (FTP retiré) : `build_dossier`
+rendait une fenêtre SANS aucune colonne `_S`, `station_count` valait 0 et
+`compute_meteo_hydro_features` mourait sur `pd.concat([])`. La prédiction
+`source="live"` était donc cassée ; seul `"frozen"` marchait.
+
+`preprocessing/meteo/open_meteo.py` interroge Open-Meteo (modèles
+Météo-France), sans clé d'API ni nouvelle dépendance, **un appel par point**
+des 7 `stations_meteo_nwp` de `bv.json`.
+
+**Trois pièges, tous vérifiés par test** :
+- `temperature_S{i}` doit être en **KELVIN** (`et0.py` fait `t - 273.15`) ;
+  l'API rend des °C.
+- `precipitation_S{i}` doit être **CUMULÉE** (`snow.py` fait
+  `.diff(1).clip(lower=0)`) ; l'API rend des incréments horaires.
+- **Ne PAS utiliser l'archive ERA5** malgré ses 5,6 ans : mesurée sur 504 h de
+  recouvrement, elle donne TROIS FOIS plus de pluie que Météo-France
+  (0.136 vs 0.049 mm/h, corr 0.21) pour une température quasi identique
+  (+0.31 °C, corr 0.95). On utilise `historical-forecast-api` en Météo-France,
+  homogène, depuis le **2022-11-15** (bissecté) : 3,8 ans sans trou.
+
+**`niveau0` (isotherme 0°) n'existe plus** : aucun modèle Météo-France ne
+l'expose, ni l'archive ERA5, donc l'historique serait irreconstituable. Il
+servait à la partition pluie/neige ET à `t_moyen`. Les deux passent désormais
+par `snow.bv_temperature` : température 2 m réelle corrigée de l'écart
+d'altitude point -> bassin (`altitude_S{i}`, rendue par l'API). Sémantique
+identique (`t_moyen > 0` <=> ancien « isotherme au-dessus du BV »), et les
+tests à valeurs calculées à la main passent inchangés, ce qui le prouve.
+
+**Toute la chaîne de création du `bv.json` a été supprimée** (`preprocessing/bv/`,
+`centrales_calibration.json`, et les dépendances `pysheds`/`rasterio`/
+`geopandas`/`shapely`/`pyproj`) : les `bv.json` des 2 centrales sont figés, on
+est hors production. `bv.json` reste LU par l'entraînement et la prédiction.
+Deux fonctions ont été rapatriées avant la suppression : `haversine_km` dans
+`model/features/meteo_hydro.py` et `bv_json_path` inliné dans `dossier_window.py`.
+
+### Pièges rencontrés en rebranchant la chaîne (2026-09-10)
+
+- **Console Windows en cp1252** : `maj-data.py` mourait sur son propre `print`
+  d'en-tête (`→`, `—`, `✗` sont hors cp1252), donc AUCUN débit n'était importé.
+  `common/console.py::force_utf8()` est appelé en tête du `main()` des 5
+  scripts cron. Corriger les caractères un par un ne tiendrait pas.
+- **`build-data-preparation` FUSIONNE avec le CSV existant** : les anciennes
+  colonnes survivent (`niveau0` réapparaissait) et un point météo en échec
+  garde ses valeurs du run précédent. Pour un changement de schéma, SUPPRIMER
+  les `data_preparation.csv` avant `--full-history`.
+- **L'API rend l'axe temporel demandé EN ENTIER**, avec des `null` là où le
+  modèle n'a rien (`past_days=92` sur un modèle qui n'archive que 60 jours).
+  Sans `dropna` avant fusion, ces `null` gagnent le recouvrement (`keep="last"`)
+  et EFFACENT les vraies valeurs de l'archive -- 32 jours perdus en silence.
+- **`FULL_HISTORY_START` doit valoir la date de début de la météo.** Le débit
+  remonte à 2021, mais une ligne sans météo est inexploitable : démarrer avant
+  décale le split 80/20 vers un passé vide. Mesuré : meta-learner à 1175
+  échantillons au lieu de ~19 650, `kge_stacking` à **-6.6e7**.
+- **`dvc repro` ne nettoie pas `dvc.lock`** : il met à jour les stages présents
+  dans `dvc.yaml` mais laisse les entrées orphelines (le stage `bv` supprimé y
+  survivait). Retirer le bloc à la main après toute suppression de stage.
+- **`dvc repro` marche à nouveau sur Windows** depuis que les `cmd` utilisent
+  `python` et non le shim `.venv/bin/python` -- à condition que l'env conda
+  soit activé (le sous-shell de DVC résout `python` via le PATH).
+- **Changer le schéma météo casse les anciens modèles** : le BiLSTM attend un
+  `n_features` figé (`[256, 29]` contre `[256, 22]`), donc
+  `evaluate_candidate_vs_production` lève un `size mismatch`. Retirer les
+  modèles incompatibles de `models/` fait basculer en `first_training`.
+
 ## Pièges connus (toujours valides après simplification)
 
 - **`_read_source` (`puissance_store.py`, conservé)** : vérifier
@@ -382,9 +458,10 @@ retenu est loggé au lancement.
 
 - **La promotion est EXPLICITE depuis le 2026-09-09** — `train.py` entraîne,
   évalue et écrit le candidat dans `weights/hybrid_candidate/`, mais ne promeut
-  QUE si `--promote` est passé. `--dossier` est désormais obligatoire (les
-  modes automatisés `--mode new|monthly` ont été retirés en même temps que
-  `dvc/model/dvc.yaml`), donc AUCUN entraînement ne promeut sans geste explicite.
+  QUE si `--promote` est passé. Le stage DVC `train` le passe (il EST le chemin
+  automatisé) ; un lancement manuel `--dossier` ne promeut donc jamais tout
+  seul. Sans `--dossier`, `train.py` boucle sur toutes les centrales onboardées,
+  filtrées par `is_eligible_for_training`.
   `promote_model` refuse en plus de tourner si l'arbre git n'est pas propre
   (sinon son commit de promotion embarquerait des modifications sans rapport).
 - **`promote_model` invoque `python -m dvc`, pas `dvc`** — sur Windows,
@@ -413,11 +490,12 @@ retenu est loggé au lancement.
 ```bash
 python cron/scripts/maj-data.py --dossier apas_G1_G4      # test ciblé débit (Hub'Eau réel)
 python cron/scripts/onboarding-check.py                   # tous les raccordements (pas de --dossier)
-python cron/scripts/onboarding-bv.py single --dossier apas_G1_G4  # no-op si bv.json déjà présent
 python cron/scripts/build-data-preparation.py --dossier apas_G1_G4
-python cron/scripts/train.py --dossier touzac_g2_G2 --horizon 8 --force  # entraînement réel réduit
+python cron/scripts/train.py --dossier touzac_g2_G2 --horizon 8 --force  # candidat seul, aucune promotion
+python cron/scripts/train.py --dossier touzac_g2_G2 --horizon 8 --force --promote  # + promotion si meilleur
+python cron/scripts/train.py --promote                     # stage DVC train : toutes les centrales éligibles
 python cron/scripts/predict-archive.py                     # prédit + archive toutes les centrales avec modèle en prod
-python -m pytest tests/ -q                                 # suite rapide (342 passed, 2 deselected)
+python -m pytest tests/ -q                                 # suite rapide (290 passed, 2 deselected)
 python -m pytest tests/integration/ -v -m slow             # tests réels lents (entraînement + prédiction, ~30 min)
 ```
 

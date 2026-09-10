@@ -146,3 +146,27 @@ def test_train_one_does_not_promote_without_the_explicit_flag(tmp_path, monkeypa
     assert (tmp_path / "weights" / "hybrid_candidate" / "test_centrale" / "h72" / "results.json").exists()
 
 
+
+
+def test_run_without_dossier_loops_over_every_onboarded_centrale(tmp_path, monkeypatch):
+    """Mode du stage DVC `train` : sans --dossier, on boucle sur toutes les
+    centrales ayant un bv.json. Le filtrage se fait ensuite par éligibilité, pas
+    par la ligne de commande."""
+    _patch_common(tmp_path, monkeypatch)
+    centrales_dir = tmp_path / "centrales"
+    for d in ("centrale_a", "centrale_b"):
+        (centrales_dir / d).mkdir(parents=True)
+        (centrales_dir / d / "bv.json").write_text("{}", encoding="utf-8")
+    # un répertoire sans bv.json n'est pas onboardé : il doit être ignoré
+    (centrales_dir / "pas_onboardee").mkdir(parents=True)
+
+    monkeypatch.setattr(train_script, "is_eligible_for_training", lambda d, h: h == 8)
+    vus = []
+    monkeypatch.setattr(
+        train_script, "train_one",
+        lambda dossier, horizon, **kw: vus.append((dossier, horizon, kw.get("promote")))
+        or f"{dossier} h{horizon} : ok",
+    )
+
+    assert train_script.run(promote=True) == 0
+    assert vus == [("centrale_a", 8, True), ("centrale_b", 8, True)]

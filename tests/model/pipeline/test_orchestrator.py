@@ -18,7 +18,7 @@ def make_synthetic_df(n_days=400):
             "longitude_S1": 0.9,
             "temperature_S1": 280.0 + 5 * np.sin(2 * np.pi * np.arange(n_days) / 365),
             "precipitation_S1": np.cumsum(rng.uniform(0, 2, n_days)),
-            "niveau0_S1": 1500.0,
+            "altitude_S1": 300.0,
         },
         index=index,
     )

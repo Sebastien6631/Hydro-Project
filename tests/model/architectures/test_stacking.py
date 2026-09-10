@@ -27,13 +27,13 @@ def test_slice_lgbm_multistep_valid_and_invalid_positions():
 
 def test_meteo_cols_detects_weather_columns_excludes_lat_lon():
     df = pd.DataFrame({
-        "precipitation_S1": [1], "temperature_S2": [1], "niveau0_S3": [1],
+        "precipitation_S1": [1], "temperature_S2": [1], "precipitation_S3": [1],
         "latitude_S1": [1], "longitude_S1": [1], "random_col": [1],
     })
 
     result = meteo_cols(df)
 
-    assert result == ["precipitation_S1", "temperature_S2", "niveau0_S3"]
+    assert result == ["precipitation_S1", "temperature_S2", "precipitation_S3"]
 
 
 def test_kge_components_near_perfect_prediction():

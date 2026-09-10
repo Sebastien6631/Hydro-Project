@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """build-data-preparation — construit/met à jour le Data_Preparation (débit +
-météo NWP brute + amont brut) par centrale, pour l'entraînement du modèle
+météo + amont brut) par centrale, pour l'entraînement du modèle
 hybride meta.
 
 Périmètre historique confirmé (J-1 et avant) uniquement -- pas la fenêtre
@@ -25,6 +25,8 @@ import sys
 
 import pandas as pd
 
+from previ_r2d2.common.console import force_utf8
+from previ_r2d2.preprocessing.meteo.open_meteo import ARCHIVE_MIN_DATE
 from previ_r2d2.common import config
 from previ_r2d2.common.dvc_markers import write as write_marker
 from previ_r2d2.preprocessing.data_preparation.data_preparation_csv import (
@@ -37,7 +39,13 @@ from previ_r2d2.preprocessing.data_preparation.dossier_window import build_dossi
 logger = logging.getLogger("build-data-preparation")
 
 DATA_PREPARATION_FILENAME = "data_preparation.csv"
-FULL_HISTORY_START = pd.Timestamp("2000-01-01")
+# Plancher = début de la météo disponible. Le débit remonte à 2021, mais une
+# ligne sans météo est inexploitable : `build_features` la supprime (dropna) et
+# `build_sequences` rejette toute fenêtre qui en contient une. Démarrer avant
+# la météo ne rallonge donc pas l'entraînement -- ça le SABOTE, en décalant le
+# split 80/20 vers un passé vide. Mesuré : le meta-learner tombait à 1175
+# échantillons au lieu de ~29 000, KGE stacking a -6.6e7.
+FULL_HISTORY_START = ARCHIVE_MIN_DATE
 
 
 def run(only_dossier: str | None = None, full_history: bool = False) -> int:
@@ -106,6 +114,7 @@ def run(only_dossier: str | None = None, full_history: bool = False) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
+    force_utf8()
     logging.basicConfig(level=logging.INFO,
                          format="[%(asctime)s] %(levelname)s | %(name)s | %(message)s",
                          datefmt="%Y-%m-%d %H:%M:%S")

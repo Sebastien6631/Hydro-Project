@@ -15,9 +15,7 @@ WORKDIR /app
 # torch CPU-only (gros paquet) sur un layer séparé pour le cache.
 RUN pip install torch==2.12.1 --index-url https://download.pytorch.org/whl/cpu
 
-# Dépendances + package. Les extras GIS (pysheds/rasterio/geopandas) ne sont
-# PAS installés : lazy-import only, jamais exercés pour les 2 centrales
-# (shapefile connu). `.[dev]` ajoute pytest.
+# Dépendances + package. `.[dev]` ajoute pytest.
 COPY pyproject.toml README.md ./
 COPY src ./src
 RUN pip install -e ".[dev]"

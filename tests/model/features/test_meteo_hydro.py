@@ -49,7 +49,7 @@ def make_df(n_hours=48):
             "longitude_S1": 0.9,
             "temperature_S1": 280.0,
             "precipitation_S1": precip_cumul,
-            "niveau0_S1": 1500.0,
+            "altitude_S1": 300.0,
         },
         index=index,
     )
@@ -105,14 +105,17 @@ def test_compute_meteo_hydro_features_high_altitude_adds_columns_and_rewrites_ap
     # Plateau froid 24h puis pluie nette : t_lisse_24h reste < -1 pendant que l'apport pre-gel est non nul, sinon la réassignation par facteur_gel_s serait un no-op.
     index = pd.date_range("2026-01-01", periods=48, freq="1h")
     precip_cumul = np.concatenate([np.full(24, 10.0), 10.0 + np.cumsum(np.where(np.arange(24) == 0, 5.0, 0.05))])
-    niveau0 = np.concatenate([np.full(24, 100.0), np.full(24, 2000.0)])
+    # altitude_S1 = altitude du BV "bas" (300) => t_moyen = temperature en °C ;
+    # pour bv_params_high (1500) le meme jeu donne t_moyen - 7.8 °C, soit
+    # exactement l'ecart que produisait l'ancien couple (niveau0, altitude_bv).
+    temperature = np.concatenate([np.full(24, 273.15 - 1.3), np.full(24, 273.15 + 11.05)])
     df = pd.DataFrame(
         {
             "latitude_S1": 43.1,
             "longitude_S1": 0.9,
-            "temperature_S1": 280.0,
+            "temperature_S1": temperature,
             "precipitation_S1": precip_cumul,
-            "niveau0_S1": niveau0,
+            "altitude_S1": 300.0,
         },
         index=index,
     )
@@ -142,9 +145,11 @@ def test_compute_meteo_hydro_features_high_altitude_match_hand_computed_values()
         {
             "latitude_S1": 43.1,
             "longitude_S1": 0.9,
-            "temperature_S1": 280.0,
+            # t_moyen identique a l'ancien (niveau0 - 1500) * 0.0065, avec
+            # altitude_S1 = altitude_bv : t_moyen vaut la temperature en °C.
+            "temperature_S1": [273.15 - 6.5, 273.15 - 6.5, 273.15 + 3.25, 273.15 + 3.25, 273.15 + 3.25],
             "precipitation_S1": [0.0, 3.0, 23.0, 23.0, 40.0],
-            "niveau0_S1": [500.0, 500.0, 2000.0, 2000.0, 2000.0],
+            "altitude_S1": 1500.0,
         },
         index=index,
     )
@@ -179,7 +184,7 @@ def test_compute_meteo_hydro_features_deficit_and_indice_match_hand_computed_val
             "longitude_S1": 0.9,
             "temperature_S1": 280.0,
             "precipitation_S1": [0.0, 5.0, 12.0],
-            "niveau0_S1": 2000.0,
+            "altitude_S1": 300.0,
         },
         index=index,
     )
@@ -214,7 +219,7 @@ def test_compute_meteo_hydro_features_transfert_gradients_and_windows_columns():
 
 
 def test_compute_meteo_hydro_features_transfert_and_windows_match_hand_computed_values():
-    # apport_net_s connu par construction (kc_unit=0 -> etp=0, niveau0>altitude_bv partout -> pas de neige/fonte) ; shift/diff/rolling recalculés indépendamment via pandas brut dans un script séparé (transfert_h=1 pour cette distance ≈3.7 km).
+    # apport_net_s connu par construction (kc_unit=0 -> etp=0, t_moyen>0 partout -> pas de neige/fonte) ; shift/diff/rolling recalculés indépendamment via pandas brut dans un script séparé (transfert_h=1 pour cette distance ≈3.7 km).
     index = pd.date_range("2026-01-01", periods=10, freq="1h")
     df = pd.DataFrame(
         {
@@ -222,7 +227,7 @@ def test_compute_meteo_hydro_features_transfert_and_windows_match_hand_computed_
             "longitude_S1": 0.9,
             "temperature_S1": 280.0,
             "precipitation_S1": [0, 2, 2, 3, 6, 6, 8, 12, 12, 18],
-            "niveau0_S1": 2000.0,
+            "altitude_S1": 300.0,
         },
         index=index,
     )
@@ -244,9 +249,9 @@ def test_compute_meteo_hydro_features_gel_only_on_first_station(monkeypatch):
     df = pd.DataFrame(
         {
             "latitude_S1": 43.1, "longitude_S1": 0.9, "temperature_S1": 280.0,
-            "precipitation_S1": precip_cumul, "niveau0_S1": 1500.0,
+            "precipitation_S1": precip_cumul, "altitude_S1": 300.0,
             "latitude_S2": 43.2, "longitude_S2": 1.0, "temperature_S2": 280.0,
-            "precipitation_S2": precip_cumul, "niveau0_S2": 1500.0,
+            "precipitation_S2": precip_cumul, "altitude_S2": 300.0,
         },
         index=index,
     )
@@ -281,7 +286,7 @@ def test_compute_meteo_hydro_features_reserves_saturation_reactivite_columns():
 
 
 def test_compute_meteo_hydro_features_reserves_saturation_surpression_match_hand_computed_values():
-    # apport_net_s connu par construction (kc_unit=0 -> etp=0, niveau0>altitude_bv partout -> pas de neige/fonte) ; ewm/rolling/expanding recalculés indépendamment via pandas brut dans un script séparé (transfert_h=1 pour cette distance ≈3.7 km, steps_per_day=1 pour que rolling(24h) se réduise à une fenêtre de 1 pas).
+    # apport_net_s connu par construction (kc_unit=0 -> etp=0, t_moyen>0 partout -> pas de neige/fonte) ; ewm/rolling/expanding recalculés indépendamment via pandas brut dans un script séparé (transfert_h=1 pour cette distance ≈3.7 km, steps_per_day=1 pour que rolling(24h) se réduise à une fenêtre de 1 pas).
     index = pd.date_range("2026-01-01", periods=10, freq="1h")
     df = pd.DataFrame(
         {
@@ -289,7 +294,7 @@ def test_compute_meteo_hydro_features_reserves_saturation_surpression_match_hand
             "longitude_S1": 0.9,
             "temperature_S1": 280.0,
             "precipitation_S1": [0, 2, 2, 3, 6, 6, 8, 12, 12, 18],
-            "niveau0_S1": 2000.0,
+            "altitude_S1": 300.0,
         },
         index=index,
     )
@@ -326,7 +331,7 @@ def test_compute_meteo_hydro_features_weather_lags_match_hand_computed_values():
             "longitude_S1": 0.9,
             "temperature_S1": 280.0,
             "precipitation_S1": [0, 2, 2, 3, 6, 6, 8, 12, 12, 18],
-            "niveau0_S1": 2000.0,
+            "altitude_S1": 300.0,
         },
         index=index,
     )
@@ -351,9 +356,9 @@ def test_compute_meteo_hydro_features_global_aggregates_present_once():
     df = pd.DataFrame(
         {
             "latitude_S1": 43.1, "longitude_S1": 0.9, "temperature_S1": 280.0,
-            "precipitation_S1": precip_cumul, "niveau0_S1": 1500.0,
+            "precipitation_S1": precip_cumul, "altitude_S1": 300.0,
             "latitude_S2": 43.2, "longitude_S2": 1.0, "temperature_S2": 280.0,
-            "precipitation_S2": precip_cumul, "niveau0_S2": 1500.0,
+            "precipitation_S2": precip_cumul, "altitude_S2": 300.0,
         },
         index=index,
     )
@@ -369,3 +374,13 @@ def test_compute_meteo_hydro_features_global_aggregates_present_once():
     pd.testing.assert_series_equal(
         result["Apport_Bassin_Moyen"], expected_mean, check_names=False
     )
+
+
+def test_haversine_km_one_degree_latitude():
+    """Rapatriée depuis preprocessing/bv/transit.py (supprimé avec la chaîne
+    d'onboarding) : elle sert à la distance point météo -> exutoire, qui pilote
+    le temps de transfert et les fenêtres d'agrégation."""
+    from previ_r2d2.model.features.meteo_hydro import haversine_km
+
+    assert haversine_km(0.0, 0.0, 1.0, 0.0) == pytest.approx(111.19, abs=0.05)
+    assert haversine_km(43.13, 0.92, 43.13, 0.92) == pytest.approx(0.0)
