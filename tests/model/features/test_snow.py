@@ -6,15 +6,16 @@ import pytest
 from previ_r2d2.model.features.snow import partition_precipitation, snow_melt
 
 
-def test_partition_precipitation_splits_on_isotherm_vs_altitude():
+def test_partition_precipitation_splits_on_bv_temperature():
     index = pd.DatetimeIndex(["2026-01-01 00:00", "2026-01-01 01:00", "2026-01-01 02:00"])
     df = pd.DataFrame(
         {
             # cumul journalier NWP -> diff donne l'incrément horaire
             "precipitation_S1": [0.0, 2.0, 4.0],
-            # niveau0 au-dessus de altitude_bv (=1000) au pas 1 -> pluie ;
-            # au-dessous au pas 2 -> neige
-            "niveau0_S1": [1500, 1500, 500],
+            # altitude_S1 = altitude_bv => t_moyen vaut la temperature en °C.
+            # Positive au pas 1 -> pluie ; negative au pas 2 -> neige.
+            "temperature_S1": [273.15 + 3.25, 273.15 + 3.25, 273.15 - 3.25],
+            "altitude_S1": 1000.0,
         },
         index=index,
     )
@@ -39,7 +40,11 @@ def test_snow_melt_accumulates_then_melts():
     # 3 pas : chute de neige (2mm), pas de fonte (T très froide) ; puis
     # T remonte au-dessus du seuil -> fonte progressive du stock.
     index = pd.DatetimeIndex(["2026-01-01 00:00", "2026-01-01 01:00", "2026-01-01 02:00"])
-    df = pd.DataFrame({"niveau0_S1": [-5000, -5000, 2000]}, index=index)  # niveau0 très bas -> T_moyen très négatif aux pas 0-1
+    # altitude_S1 = altitude_bv => t_moyen = temperature en °C : très négatif aux pas 0-1, positif au pas 2.
+    df = pd.DataFrame(
+        {"temperature_S1": [273.15 - 39.0, 273.15 - 39.0, 273.15 + 6.5], "altitude_S1": 1000.0},
+        index=index,
+    )
     neige = pd.Series([2.0, 0.0, 0.0], index=index)
     pluie_sol = pd.Series([0.0, 0.0, 0.0], index=index)
 
@@ -50,16 +55,19 @@ def test_snow_melt_accumulates_then_melts():
     # Pas 0-1 : T_moyen très négatif -> fonte_potentielle nulle -> stock s'accumule (avec décroissance ×0.998)
     assert stock_neige_list[0] == pytest.approx(2.0 * 0.998)
     assert fonte_series.iloc[0] == pytest.approx(0.0)
-    # Pas 2 : niveau0=2000 > altitude_bv=1000 -> T_moyen positif -> fonte possible, bornée au stock disponible
+    # Pas 2 : T_moyen positif -> fonte possible, bornée au stock disponible
     assert fonte_series.iloc[2] >= 0.0
     assert stock_neige_list[2] >= 0.0
     assert len(t_moyen) == 3
 
 
 def test_snow_melt_pluie_sur_neige_accelerates_fonte():
-    # Pas 0 : chute de neige (5mm) par grand froid -> accumulation. Pas 1 : T_moyen positif (niveau0 > altitude_bv) avec pluie sur neige -> terme pluie-sur-neige actif.
+    # Pas 0 : chute de neige (5mm) par grand froid -> accumulation. Pas 1 : T_moyen positif avec pluie sur neige -> terme pluie-sur-neige actif.
     index = pd.DatetimeIndex(["2026-01-01 00:00", "2026-01-01 01:00"])
-    df = pd.DataFrame({"niveau0_S1": [-5000, 2538]}, index=index)
+    df = pd.DataFrame(
+        {"temperature_S1": [273.15 - 39.0, 273.15 + 9.997], "altitude_S1": 1000.0},
+        index=index,
+    )
     neige = pd.Series([5.0, 0.0], index=index)
     pluie_sol_avec = pd.Series([0.0, 8.0], index=index)
     pluie_sol_sans = pd.Series([0.0, 0.0], index=index)

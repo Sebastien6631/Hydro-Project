@@ -36,7 +36,6 @@ def test_load_prediction_window_covers_lookback_and_horizon(tmp_path, monkeypatc
     reference_dir = tmp_path / "REFERENCE"
     centrales_dir = tmp_path / "centrales"
     nas_data_root = tmp_path / "nas_data"
-    nas_meteo = tmp_path / "nas_meteo"
     reference_dir.mkdir()
     (centrales_dir / "test_centrale").mkdir(parents=True)
     (nas_data_root / "test_centrale").mkdir(parents=True)
@@ -44,7 +43,6 @@ def test_load_prediction_window_covers_lookback_and_horizon(tmp_path, monkeypatc
     monkeypatch.setattr(config, "REFERENCE_DIR", reference_dir)
     monkeypatch.setattr(config, "CENTRALES_DIR", centrales_dir)
     monkeypatch.setattr(config, "NAS_DATA_ROOT", nas_data_root)
-    monkeypatch.setattr(config, "NAS_METEO", nas_meteo)
 
     now = pd.Timestamp("2026-06-01 12:00:00")
     index = pd.date_range(now - pd.Timedelta(days=5), now, freq="1h", tz="UTC")

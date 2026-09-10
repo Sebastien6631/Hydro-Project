@@ -13,7 +13,7 @@ from previ_r2d2.common import config
 from previ_r2d2.preprocessing.bv.bv_builder import bv_json_path
 from previ_r2d2.preprocessing.data_preparation.amont_source import amont_series
 from previ_r2d2.preprocessing.data_preparation.debit_source import debit_series
-from previ_r2d2.preprocessing.meteo.nwp_reader import read_points
+from previ_r2d2.preprocessing.meteo.open_meteo import read_points
 
 
 def to_hourly(s: pd.Series) -> pd.Series:
@@ -41,7 +41,7 @@ def build_dossier(rec: dict, start: pd.Timestamp, end: pd.Timestamp) -> pd.DataF
         bv = json.loads(bv_path.read_text(encoding="utf-8"))
         points = bv.get("stations_meteo_nwp", [])
         if points:
-            meteo = read_points(config.NAS_METEO, points, start, end)
+            meteo = read_points(points, start, end)
             overlap = columns.keys() & meteo.columns
             if overlap:
                 raise ValueError(f"{dossier} : colonnes en conflit : {overlap}")

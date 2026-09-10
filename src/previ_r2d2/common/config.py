@@ -68,7 +68,6 @@ PUISSANCE_SOURCE_ROOT = Path(_get("PREVI_PUISSANCE_SOURCE_ROOT", ""))
 # `nwp_reader.read_points` renvoie un DataFrame vide si ce dossier est
 # absent/vide -- jamais de crash, dégradation gracieuse en attendant le
 # sous-projet "API météo publique".
-NAS_METEO = Path(_get("PREVI_NAS_METEO", ""))
 
 # --- Onboarding BV (délimitation de bassin versant) -----------------------
 # MNT France entière (GeoTIFF, EPSG:4326 ou Lambert93) utilisé pour délimiter

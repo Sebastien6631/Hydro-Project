@@ -32,7 +32,7 @@ def make_synthetic_df(n_days=400, freq="1D", noise_std=0.2):
             "longitude_S1": 0.9,
             "temperature_S1": 280.0 + 5 * np.sin(2 * np.pi * np.arange(n_days) / 365),
             "precipitation_S1": np.cumsum(rng.uniform(0, 2, n_days)),
-            "niveau0_S1": 1500.0,
+            "altitude_S1": 300.0,
         },
         index=index,
     )
@@ -42,11 +42,9 @@ def test_run_prediction_end_to_end_produces_csv(tmp_path, monkeypatch):
     centrales_dir = tmp_path / "centrales"
     reference_dir = centrales_dir / "REFERENCE"
     nas_data_root = tmp_path / "nas_data"
-    nas_meteo = tmp_path / "nas_meteo"
     monkeypatch.setattr(config, "CENTRALES_DIR", centrales_dir)
     monkeypatch.setattr(config, "REFERENCE_DIR", reference_dir)
     monkeypatch.setattr(config, "NAS_DATA_ROOT", nas_data_root)
-    monkeypatch.setattr(config, "NAS_METEO", nas_meteo)
     monkeypatch.setattr(config, "ROOT", tmp_path)
     models_dir = tmp_path / "models"
     monkeypatch.setattr(config, "MODELS_DIR", models_dir)
@@ -93,7 +91,7 @@ def test_run_prediction_end_to_end_produces_csv(tmp_path, monkeypatch):
             {
                 "debit_m3s": np.nan,
                 "latitude_S1": 43.1, "longitude_S1": 0.9,
-                "temperature_S1": 280.0, "precipitation_S1": 1.0, "niveau0_S1": 1500.0,
+                "temperature_S1": 280.0, "precipitation_S1": 1.0, "altitude_S1": 300.0,
             },
             index=future_index,
         )
@@ -114,11 +112,9 @@ def test_run_prediction_h8_writes_prevision_json(tmp_path, monkeypatch):
     centrales_dir = tmp_path / "centrales"
     reference_dir = centrales_dir / "REFERENCE"
     nas_data_root = tmp_path / "nas_data"
-    nas_meteo = tmp_path / "nas_meteo"
     monkeypatch.setattr(config, "CENTRALES_DIR", centrales_dir)
     monkeypatch.setattr(config, "REFERENCE_DIR", reference_dir)
     monkeypatch.setattr(config, "NAS_DATA_ROOT", nas_data_root)
-    monkeypatch.setattr(config, "NAS_METEO", nas_meteo)
     monkeypatch.setattr(config, "ROOT", tmp_path)
     models_dir = tmp_path / "models"
     monkeypatch.setattr(config, "MODELS_DIR", models_dir)
@@ -170,7 +166,7 @@ def test_run_prediction_h8_writes_prevision_json(tmp_path, monkeypatch):
             {
                 "debit_m3s": np.nan,
                 "latitude_S1": 43.1, "longitude_S1": 0.9,
-                "temperature_S1": 280.0, "precipitation_S1": 1.0, "niveau0_S1": 1500.0,
+                "temperature_S1": 280.0, "precipitation_S1": 1.0, "altitude_S1": 300.0,
             },
             index=future_index,
         )
@@ -206,11 +202,9 @@ def test_run_prediction_h48_then_h72_merge_into_enchere_json(tmp_path, monkeypat
     centrales_dir = tmp_path / "centrales"
     reference_dir = centrales_dir / "REFERENCE"
     nas_data_root = tmp_path / "nas_data"
-    nas_meteo = tmp_path / "nas_meteo"
     monkeypatch.setattr(config, "CENTRALES_DIR", centrales_dir)
     monkeypatch.setattr(config, "REFERENCE_DIR", reference_dir)
     monkeypatch.setattr(config, "NAS_DATA_ROOT", nas_data_root)
-    monkeypatch.setattr(config, "NAS_METEO", nas_meteo)
     monkeypatch.setattr(config, "ROOT", tmp_path)
     models_dir = tmp_path / "models"
     monkeypatch.setattr(config, "MODELS_DIR", models_dir)
@@ -249,7 +243,7 @@ def test_run_prediction_h48_then_h72_merge_into_enchere_json(tmp_path, monkeypat
             {
                 "debit_m3s": np.nan,
                 "latitude_S1": 43.1, "longitude_S1": 0.9,
-                "temperature_S1": 280.0, "precipitation_S1": 1.0, "niveau0_S1": 1500.0,
+                "temperature_S1": 280.0, "precipitation_S1": 1.0, "altitude_S1": 300.0,
             },
             index=future_index,
         )
