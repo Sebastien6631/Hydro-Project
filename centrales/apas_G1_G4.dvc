@@ -1,6 +1,6 @@
 outs:
-- md5: d55656bf10cef481bacff698dfcdef35.dir
-  size: 69544854
-  nfiles: 11
+- md5: 776a32b7c00bf8c8a19de9f72bcccf86.dir
+  size: 69540674
+  nfiles: 10
   hash: md5
   path: apas_G1_G4
