@@ -5,8 +5,8 @@ from unittest.mock import patch
 
 import pytest
 
-from previ_r2d2 import cli
-from previ_r2d2.common import config
+from projet_hydro import cli
+from projet_hydro.common import config
 
 
 def make_centrales_dir(tmp_path, dossiers):

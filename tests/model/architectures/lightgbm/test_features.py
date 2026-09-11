@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from previ_r2d2.model.architectures.lightgbm.features import build_features, build_future_features
+from projet_hydro.model.architectures.lightgbm.features import build_features, build_future_features
 
 
 def make_full_df(n_hours=400):

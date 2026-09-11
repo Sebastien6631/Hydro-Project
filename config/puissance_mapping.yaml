@@ -1,4 +1,4 @@
-# Correspondance dossier centrale (previ-R2-D2) -> nom de dossier hydrospot_stream
+# Correspondance dossier centrale (projet_hydro) -> nom de dossier hydrospot_stream
 # (PREVI_PUISSANCE_SOURCE_ROOT). Recours explicite pour les cas où l'heuristique
 # mot-clé+groupe de find_source_folder() ne peut pas fonctionner seule :
 #   - touzac_g2_G2       : le mot-clé tiré de centrale="touzac_g2" ne matche pas

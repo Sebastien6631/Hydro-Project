@@ -5,8 +5,8 @@ import pandas as pd
 from sklearn.linear_model import Ridge
 from sklearn.preprocessing import StandardScaler
 
-from previ_r2d2.model.architectures.stacking import meteo_cols
-from previ_r2d2.model.pipeline.predict import predict_test_set
+from projet_hydro.model.architectures.stacking import meteo_cols
+from projet_hydro.model.pipeline.predict import predict_test_set
 
 
 def test_predict_test_set_returns_aligned_filtered_arrays():

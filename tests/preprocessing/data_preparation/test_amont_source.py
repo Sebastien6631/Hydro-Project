@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from previ_r2d2.common import config
-from previ_r2d2.preprocessing.data_preparation.amont_source import amont_series
+from projet_hydro.common import config
+from projet_hydro.preprocessing.data_preparation.amont_source import amont_series
 
 
 def test_amont_series_returns_empty_dict_when_no_amont_configured(tmp_path, monkeypatch):

@@ -13,7 +13,7 @@ stages:
     deps:
       - centrales/REFERENCE/config-general.json
       - logs/dvc_markers/validate.json
-      - src/previ_r2d2/model/
+      - src/projet_hydro/model/
       - cron/scripts/train.py
       - cron/scripts/build-data-preparation.py
     # L'éligibilité se calcule à chaque exécution (elle dépend de la date, pas

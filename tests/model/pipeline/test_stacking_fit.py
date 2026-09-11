@@ -4,9 +4,9 @@ import numpy as np
 import pandas as pd
 import pytest
 from sklearn.linear_model import Ridge
-from previ_r2d2.model.architectures.stacking import kge_components
-from previ_r2d2.model.pipeline.split import train_val_test_indices
-from previ_r2d2.model.pipeline.stacking_fit import (
+from projet_hydro.model.architectures.stacking import kge_components
+from projet_hydro.model.pipeline.split import train_val_test_indices
+from projet_hydro.model.pipeline.stacking_fit import (
     DEFAULT_RIDGE_META_PARAMS,
     PerStepLGBMMeta,
     fit_stacking,

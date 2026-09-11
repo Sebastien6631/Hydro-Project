@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from previ_r2d2.model.features.meteo_hydro import (
+from projet_hydro.model.features.meteo_hydro import (
     compute_meteo_hydro_features,
     station_count,
     windows_for_distance,
@@ -380,7 +380,7 @@ def test_haversine_km_one_degree_latitude():
     """Rapatriée depuis preprocessing/bv/transit.py (supprimé avec la chaîne
     d'onboarding) : elle sert à la distance point météo -> exutoire, qui pilote
     le temps de transfert et les fenêtres d'agrégation."""
-    from previ_r2d2.model.features.meteo_hydro import haversine_km
+    from projet_hydro.model.features.meteo_hydro import haversine_km
 
     assert haversine_km(0.0, 0.0, 1.0, 0.0) == pytest.approx(111.19, abs=0.05)
     assert haversine_km(43.13, 0.92, 43.13, 0.92) == pytest.approx(0.0)

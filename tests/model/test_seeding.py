@@ -3,8 +3,8 @@ from __future__ import annotations
 import numpy as np
 import torch
 
-from previ_r2d2.model.architectures.bilstm.model import BiLSTMHydro
-from previ_r2d2.model.seeding import DEFAULT_SEED, ENV_VAR, set_seeds
+from projet_hydro.model.architectures.bilstm.model import BiLSTMHydro
+from projet_hydro.model.seeding import DEFAULT_SEED, ENV_VAR, set_seeds
 
 
 def _premiers_poids(seed):

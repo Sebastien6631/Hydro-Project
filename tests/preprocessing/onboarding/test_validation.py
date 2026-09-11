@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 
-from previ_r2d2.preprocessing.onboarding import validation
+from projet_hydro.preprocessing.onboarding import validation
 
 
 def make_complete_rec(dossier="apas_G1_G4", flex_strategy="DEFAULT"):
@@ -23,7 +23,7 @@ def make_complete_rec(dossier="apas_G1_G4", flex_strategy="DEFAULT"):
 
 
 def test_missing_fields_empty_for_complete_default_record(tmp_path, monkeypatch):
-    from previ_r2d2.preprocessing.puissance import puissance_store
+    from projet_hydro.preprocessing.puissance import puissance_store
 
     monkeypatch.setattr(puissance_store.config, "PUISSANCE_SOURCE_ROOT", tmp_path)
     (tmp_path / "Apas_source").mkdir()
@@ -89,7 +89,7 @@ def test_missing_fields_flags_no_groupes(tmp_path):
 
 
 def test_missing_fields_flags_unresolved_puissance_mapping(tmp_path, monkeypatch):
-    from previ_r2d2.preprocessing.puissance import puissance_store
+    from projet_hydro.preprocessing.puissance import puissance_store
 
     monkeypatch.setattr(puissance_store.config, "PUISSANCE_SOURCE_ROOT", tmp_path)
     rec = make_complete_rec(dossier="dossier_sans_source")

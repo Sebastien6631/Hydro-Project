@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from previ_r2d2.common import dvc_markers
+from projet_hydro.common import dvc_markers
 
 
 def test_write_creates_marker_file_with_timestamp(tmp_path, monkeypatch):

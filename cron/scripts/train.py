@@ -30,12 +30,12 @@ import shutil
 import sys
 from pathlib import Path
 
-from previ_r2d2.common.console import force_utf8
-from previ_r2d2.common import config
-from previ_r2d2.common.dvc_markers import write as write_marker
-from previ_r2d2.model.pipeline.eligibility import is_eligible_for_training
-from previ_r2d2.model.pipeline.orchestrator import HORIZON_CFG, run_training
-from previ_r2d2.model.pipeline.promotion import evaluate_candidate_vs_production, promote_model
+from projet_hydro.common.console import force_utf8
+from projet_hydro.common import config
+from projet_hydro.common.dvc_markers import write as write_marker
+from projet_hydro.model.pipeline.eligibility import is_eligible_for_training
+from projet_hydro.model.pipeline.orchestrator import HORIZON_CFG, run_training
+from projet_hydro.model.pipeline.promotion import evaluate_candidate_vs_production, promote_model
 
 logger = logging.getLogger("train")
 
@@ -166,7 +166,7 @@ def run(dossier: str | None = None, horizon: int | None = None, force: bool = Fa
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dossier", help="Cibler une seule centrale (défaut : toutes les onboardées).")
-    parser.add_argument("--horizon", type=int, help="Test manuel ciblé sur cet horizon (8/48/72).")
+    parser.add_argument("--horizon", type=int, help="Test manuel ciblé sur cet horizon (8).")
     parser.add_argument(
         "--promote", action="store_true",
         help="Promouvoir le candidat s'il bat la production (copie dans models/, "

@@ -1,4 +1,4 @@
-name: previ-r2d2
+name: projet_hydro
 
 # Le code est bind-monté, les données arrivent par `dvc pull`.
 # Les phases suivantes (MLflow, Airflow...) ajouteront leurs services ici.
@@ -6,13 +6,16 @@ name: previ-r2d2
 x-env: &env
   DAGSHUB_USER: ${DAGSHUB_USER:-}
   DAGSHUB_TOKEN: ${DAGSHUB_TOKEN:-}
-  GIT_AUTHOR_NAME: ${GIT_AUTHOR_NAME:-previ-r2d2}
-  GIT_AUTHOR_EMAIL: ${GIT_AUTHOR_EMAIL:-previ-r2d2@localhost}
+  GIT_AUTHOR_NAME: ${GIT_AUTHOR_NAME:-projet_hydro}
+  GIT_AUTHOR_EMAIL: ${GIT_AUTHOR_EMAIL:-projet_hydro@localhost}
+  # .env porte l'URL vue de l'hôte (localhost) ; dans le réseau compose c'est le
+  # nom du service. `:+` = "si non vide, remplace par" -- vide reste vide.
+  MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI:+http://mlflow:5000}
 
 services:
   app:
     build: .
-    image: previ-r2d2:latest
+    image: projet_hydro:latest
     working_dir: /app
     environment: *env
     volumes:
@@ -24,7 +27,7 @@ services:
 
   api:
     build: .
-    image: previ-r2d2:latest
+    image: projet_hydro:latest
     working_dir: /app
     environment: *env
     volumes:
@@ -33,6 +36,36 @@ services:
       - "8000:8000"
     command:
       - uvicorn
-      - previ_r2d2.serving.api:app
+      - projet_hydro.serving.api:app
       - --host=0.0.0.0
       - --port=8000
+
+  # Serveur de suivi d'expériences. Backend SQLite : le Model Registry exige
+  # une base, SQLite suffit largement pour 2 centrales x 1 horizon et se
+  # sauvegarde en copiant un fichier. MinIO remplacera le stockage d'artefacts
+  # en tache 2.6.
+  #
+  # --serve-artifacts est indispensable ici : les entrainements tournent sur
+  # l'HOTE (env conda) et le serveur dans le conteneur. Sans lui, le client
+  # recoit un chemin local (/mlflow/artifacts) et ecrit a cote -- sur Windows
+  # il creerait un dossier mlflow/artifacts sur C:, invisible du conteneur,
+  # et l'onglet Artifacts resterait vide sans erreur. Avec, le client recoit une
+  # URI mlflow-artifacts:/ et televerse a travers le serveur.
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v3.16.0  # DOIT suivre le pin mlflow de pyproject.toml
+    working_dir: /mlflow
+    ports:
+      - "5000:5000"
+    volumes:
+      - mlflow-data:/mlflow
+    command:
+      - mlflow
+      - server
+      - --host=0.0.0.0
+      - --port=5000
+      - --backend-store-uri=sqlite:////mlflow/mlflow.db
+      - --serve-artifacts
+      - --artifacts-destination=/mlflow/artifacts
+
+volumes:
+  mlflow-data:

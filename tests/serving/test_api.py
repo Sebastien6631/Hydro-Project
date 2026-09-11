@@ -9,8 +9,8 @@ import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
 
-from previ_r2d2.common import config
-from previ_r2d2.serving import api
+from projet_hydro.common import config
+from projet_hydro.serving import api
 
 
 @pytest.fixture

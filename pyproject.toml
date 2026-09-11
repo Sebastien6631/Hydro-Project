@@ -3,7 +3,7 @@ requires = ["setuptools>=68.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "previ_r2d2"
+name = "projet_hydro"
 version = "0.1.0"
 description = "Pipeline IA — reprise automatisée de Previ_v2"
 requires-python = ">=3.11"
@@ -24,6 +24,9 @@ dependencies = [
     "dvc-http",       # remote DVC DagsHub en https
     "fastapi",        # API d'inférence (phase 1)
     "uvicorn",
+    # Pin strict : le client parle a un serveur d'image figee
+    # (docker-compose.yml, service mlflow) -- les deux doivent bouger ensemble.
+    "mlflow==3.16.0", # suivi d'expériences + registry (phase 2)
 ]
 
 [project.optional-dependencies]

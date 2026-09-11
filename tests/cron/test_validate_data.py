@@ -15,8 +15,8 @@ _spec.loader.exec_module(validate_data_script)
 
 
 def _setup(tmp_path, monkeypatch):
-    from previ_r2d2.common import config as cfg_mod
-    from previ_r2d2.common import dvc_markers
+    from projet_hydro.common import config as cfg_mod
+    from projet_hydro.common import dvc_markers
 
     monkeypatch.setattr(cfg_mod, "ROOT", tmp_path)
     monkeypatch.setattr(cfg_mod, "CENTRALES_DIR", tmp_path / "centrales")
@@ -25,7 +25,7 @@ def _setup(tmp_path, monkeypatch):
 
 
 def _write_csv(tmp_path, dossier, debit):
-    from previ_r2d2.preprocessing.data_preparation.data_preparation_csv import write_data_preparation_csv
+    from projet_hydro.preprocessing.data_preparation.data_preparation_csv import write_data_preparation_csv
 
     idx = pd.date_range("2024-01-01", periods=len(debit), freq="1h")
     d = tmp_path / "centrales" / dossier

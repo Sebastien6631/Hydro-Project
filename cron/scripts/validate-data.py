@@ -13,10 +13,10 @@ import json
 import logging
 import sys
 
-from previ_r2d2.common import config
-from previ_r2d2.common.dvc_markers import write as write_marker
-from previ_r2d2.preprocessing.data_preparation.data_preparation_csv import read_data_preparation_csv
-from previ_r2d2.preprocessing.data_preparation.validation import validate_data_preparation
+from projet_hydro.common import config
+from projet_hydro.common.dvc_markers import write as write_marker
+from projet_hydro.preprocessing.data_preparation.data_preparation_csv import read_data_preparation_csv
+from projet_hydro.preprocessing.data_preparation.validation import validate_data_preparation
 
 logger = logging.getLogger("validate-data")
 REPORT_DIR = config.ROOT / "logs" / "validation"

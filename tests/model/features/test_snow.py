@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from previ_r2d2.model.features.snow import partition_precipitation, snow_melt
+from projet_hydro.model.features.snow import partition_precipitation, snow_melt
 
 
 def test_partition_precipitation_splits_on_bv_temperature():

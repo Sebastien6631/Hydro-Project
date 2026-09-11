@@ -25,11 +25,11 @@ from pathlib import Path
 
 import requests
 
-from previ_r2d2.common.console import force_utf8
-from previ_r2d2.common import config, dvc_markers
-from previ_r2d2.preprocessing.debit import hydro_export, hydro_update, station_store
-from previ_r2d2.preprocessing.debit.eaufrance import EauFranceClient, EauFranceError, series_range
-from previ_r2d2.preprocessing.debit.hubeau import HubEauClient
+from projet_hydro.common.console import force_utf8
+from projet_hydro.common import config, dvc_markers
+from projet_hydro.preprocessing.debit import hydro_export, hydro_update, station_store
+from projet_hydro.preprocessing.debit.eaufrance import EauFranceClient, EauFranceError, series_range
+from projet_hydro.preprocessing.debit.hubeau import HubEauClient
 
 FLEX_STRATEGY_COLLECT = "DEFAULT"
 START_IMPORT = "01/01/2021"

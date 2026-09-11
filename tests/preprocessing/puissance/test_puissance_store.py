@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from previ_r2d2.preprocessing.puissance import puissance_store
+from projet_hydro.preprocessing.puissance import puissance_store
 
 
 def test_find_source_folder_uses_explicit_mapping_when_present(tmp_path, monkeypatch):

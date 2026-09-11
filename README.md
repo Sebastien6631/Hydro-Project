@@ -1,4 +1,4 @@
-# previ-R2-D2 (pipeline IA)
+# projet_hydro (pipeline IA)
 
 > **Version projet de cours MLOps** — ce dépôt est une version réduite de
 > previ-R2-D2 (pipeline de production chez Barthe EnR), adaptée pour un
@@ -16,9 +16,8 @@
 >   séparé de remplacement par une API météo publique.
 > - **automate** (rsync/SSH, `HAUTE_CHUTE`) — aucune des 2 centrales
 >   gardées n'utilise cette stratégie.
-> - **Mail/digest quotidien** et **MLflow** — hors périmètre (lancement
->   manuel des scripts ; le tracking d'expériences est à refaire proprement
->   comme partie du travail de cours).
+> - **Mail/digest quotidien** — hors périmètre (lancement manuel des scripts).
+>   **MLflow** a été refait proprement en phase 2 : voir la section dédiée.
 >
 > Reste pleinement fonctionnel : le débit (Hub'Eau/eaufrance, API
 > publique), l'onboarding BV, l'entraînement et la prédiction (mode
@@ -32,14 +31,14 @@ modèle hybride (LightGBM + BiLSTM + stacking), orchestrés via DVC.
 ## Architecture
 
 ```
-previ-R2-D2/
+projet_hydro/
 ├── pyproject.toml               # package installable (pip install -e .)
 ├── requirements.txt
 ├── run.py                        # CLI entraînement/prédiction du modèle hybride (--train ...)
 ├── config/
 │   ├── centrales/                # réservé (vide, .gitkeep) -- inutilisé dans cette version
 │   └── puissance_mapping.yaml   # dossier -> nom de dossier hydrospot_stream (repli explicite, cf. ci-dessous)
-├── src/previ_r2d2/
+├── src/projet_hydro/
 │   ├── common/                  # config, secret_config (3 secrets restants), dvc_markers
 │   ├── preprocessing/
 │   │   ├── onboarding/          # validation.py -- complétude config-raccordement.json avant bv
@@ -79,13 +78,13 @@ previ-R2-D2/
 │   ├── preprocessing/dvc.yaml     # debit -> onboarding_check -> bv -> data_preparation (manuel)
 │   └── postprocessing/dvc.yaml    # predict_archive (horaire)
 ├── outputs/                       # sorties de prédiction/entraînement (gitignored)
-├── tests/                         # miroir de src/previ_r2d2/
+├── tests/                         # miroir de src/projet_hydro/
 ├── centrales/                     # données des 2 centrales -- <dossier>/ versionné via DVC
 │   │                              #   (remote local ../remote_dvc, cf. <dossier>.dvc à la racine)
 │   ├── REFERENCE/                 # config-general.json, versionné via DVC ;
 │   │                              #   files/ (gitignoré, non utilisé dans cette version)
 │   └── <dossier>/                 # config-raccordement.json, *.csv, bv.json, data_preparation.csv,
-│                                  #   prevision.json, enchere.json
+│                                  #   prevision.json
 └── data/                          # inutilisé pour l'instant (réservé à un usage futur)
 ```
 
@@ -105,6 +104,7 @@ pip install requests pandas "numpy<2.4" scikit-learn scipy pyyaml \
     dvc pytest
 pip install -e . --no-deps   # --no-deps : cf. note ci-dessous
 
+cp .env.example .env         # même fichier pour l'hôte et Docker -- cf. Configuration
 dvc pull   # données statiques des 2 centrales (config-general.json,
            # centrales/<dossier>/...) depuis le remote DVC local
 ```
@@ -144,7 +144,7 @@ dvc push
 
 ## Configuration
 
-Les secrets vivent dans `src/previ_r2d2/common/secret_config.py` (Python
+Les secrets vivent dans `src/projet_hydro/common/secret_config.py` (Python
 local, **non versionné**) :
 
 ```python
@@ -157,6 +157,30 @@ PREVI_NAS_METEO = "..."             # racine des fichiers météo NWP bruts (acq
 Priorité de lecture : `secret_config.py` > variables d'environnement > défauts. Les secrets
 propres aux modules retirés dans cette version (cf. note en tête de fichier) ont disparu
 avec eux.
+
+### `.env` — un seul fichier pour l'hôte et Docker
+
+`cp .env.example .env`, puis renseigner. **Tout le monde passe par là**, env
+conda comme conteneur : `config.py` charge `.env` au premier import (parseur
+stdlib, pas de `python-dotenv`), et `docker compose` lit le même fichier pour
+ses substitutions `${VAR}`. Aucune variable à exporter à la main.
+
+Une valeur déjà présente dans l'environnement n'est jamais écrasée
+(`setdefault`) : le shell peut surcharger ponctuellement, et dans un conteneur
+c'est `x-env` de `docker-compose.yml` qui a le dernier mot.
+
+**Conflit `localhost` / `mlflow`** — `MLFLOW_TRACKING_URI` vaut
+`http://localhost:5000` vu de l'hôte, mais dans le réseau compose le serveur
+s'appelle `mlflow`. Le conflit est résolu avec la syntaxe `${VAR:+valeur}` de
+Compose (« si non vide, remplace par »), qui permet à `.env` de fonctionner
+pour Python **et** pour Docker Compose sans variable supplémentaire :
+
+```yaml
+MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI:+http://mlflow:5000}
+```
+
+`.env` non vide → hôte `localhost:5000`, conteneurs `mlflow:5000`. `.env`
+vide ou absent → vide partout, MLflow inerte (défaut des tests et de la CI).
 
 ## Pipeline (DVC)
 
@@ -180,7 +204,7 @@ debit ──> onboarding_check ──> bv
 `debit`, `onboarding_check` et `bv` déclarent chacun un `outs:` minimal
 (`logs/dvc_markers/<stage>.json`, `cache: false`) — pas une vraie sortie mise
 en cache, juste un marqueur horodaté écrit en une ligne
-(`previ_r2d2.common.dvc_markers.write(...)`) à la fin de chaque script, pour
+(`projet_hydro.common.dvc_markers.write(...)`) à la fin de chaque script, pour
 donner une vraie arête DAG entre stages (sans ça, DVC n'a rien à quoi
 accrocher une dépendance). `debit` et `onboarding_check` gardent en plus
 `always_changed: true` (comme `data_preparation` plus bas) — leurs
@@ -339,9 +363,8 @@ Pour chaque (dossier, horizon) ayant un modèle en production : archive le
 JSON de prévision existant (`postprocessing/archive.py::archive_previous_json`
 — l'heure de production, pas l'heure d'archivage, dans le nom de fichier)
 vers `./ARCHIVE/<dossier>/<AAAA>/<MM>/<JJ>/` (local, `config.ARCHIVE_ROOT`),
-puis prédit la nouvelle heure et écrit `centrales/<dossier>/prevision.json`
-(h8) ou fusionne dans `enchere.json` (clés `J2`/`J3`, h48/h72). Isolation par
-(dossier, horizon).
+puis prédit la nouvelle heure et écrit `centrales/<dossier>/prevision.json`.
+Isolation par (dossier, horizon).
 
 `run_prediction`/`load_prediction_window` acceptent un paramètre
 `source="live"` (défaut, assemble la fenêtre dynamiquement comme
@@ -353,7 +376,7 @@ prédiction 100% reproductible, par exemple en test.
 python cron/scripts/predict-archive.py   # toutes les centrales avec un modèle en prod (pas de --dossier)
 ```
 
-### `src/previ_r2d2/model/` — portage du modèle hybride meta
+### `src/projet_hydro/model/` — portage du modèle hybride meta
 
 Fonctions pures (pas de classe à état, sauf `BiLSTMHydro` qui est un
 `nn.Module` PyTorch — contrainte du framework, pas un choix indépendant).
@@ -402,7 +425,7 @@ architectures (Stacking, prédiction test set, plots) → `model/pipeline/`.
   vs production sur le même holdout, `dvc add`+`git tag`, sûr face à un échec
   partiel). Cf. section `train.py` ci-dessus pour le détail opérationnel.
 
-Voir le skill `previ-r2d2` pour le détail pièce par pièce et le skill
+Voir le skill `projet_hydro` pour le détail pièce par pièce et le skill
 `hybrid-meta-ops` pour l'architecture du modèle hybride.
 
 ```bash
@@ -411,7 +434,7 @@ Voir le skill `previ-r2d2` pour le détail pièce par pièce et le skill
 
 ### `run.py` — entraînement/prédiction MANUELS (expés, pas le chemin automatisé)
 
-CLI mince (`src/previ_r2d2/cli.py`) qui appelle `run_training`/`run_prediction`
+CLI mince (`src/projet_hydro/cli.py`) qui appelle `run_training`/`run_prediction`
 pour un dossier+horizon donné, ou pour toutes les centrales × 3 horizons
 (8h/48h/72h). **Le chemin opérationnel automatisé passe par
 `cron/scripts/train.py`/`predict-archive.py`** (cf. sections dédiées
@@ -422,7 +445,7 @@ explicite).
 
 ```bash
 python run.py --train --dossier apas_G1_G4 --horizon 8
-python run.py --train --all-dossiers                      # toutes les centrales x h8/h48/h72
+python run.py --train --all-dossiers                      # toutes les centrales (h8)
 python run.py --train --dossier apas_G1_G4 --horizon 8 --force-lgbm --force-lstm  # recalcul complet
 python run.py --train --dossier apas_G1_G4 --horizon 8 --meta lgbm --epochs 60
 ```
@@ -442,11 +465,11 @@ python cron/scripts/train.py --dossier apas_G1_G4 --horizon 8 --promote   # 4. e
 python cron/scripts/predict-archive.py                      # 6. archive + prédit la nouvelle heure
 ```
 
-## Notifications / MLflow
+## Notifications
 
-Retirés dans cette version (cf. note en tête de fichier) — lancement
-manuel des scripts, pas de digest mail ni de tracking d'expériences pour
-l'instant.
+Retirées dans cette version (cf. note en tête de fichier) — lancement
+manuel des scripts, pas de digest mail. Le suivi d'expériences, lui, est
+revenu : voir « Suivi d'expériences (MLflow) — Phase 2 » en fin de fichier.
 
 ## Références
 
@@ -467,7 +490,7 @@ docker compose run --rm app bash                     # shell interactif
 ```
 
 L'image contient Python 3.11, PyTorch CPU, LightGBM, DVC et le package
-`previ_r2d2`.
+`projet_hydro`.
 
 Le code est **bind-monté** : une modif locale est vue immédiatement dans le
 conteneur, pas de rebuild sauf changement de dépendances.
@@ -517,3 +540,67 @@ docker compose run --rm app python cron/scripts/validate-data.py --dossier apas_
 Stage DVC `validate` (dans `dvc/preprocessing/dvc.yaml`, après `data_preparation`) :
 le stage `train` en dépend, donc `dvc repro` s'arrête avant l'entraînement si
 une erreur de contrat est détectée. Rapport JSON par centrale sous `logs/validation/`.
+
+## Suivi d'expériences (MLflow) — Phase 2
+
+> **État : fait** (tâches 2.1 et 2.2, branche `phase2/mlflow-tracking`).
+> Validé le 2026-09-11 sur un entraînement réel : run `touzac_g2_G2-h8` loggé
+> avec ses métriques et artefacts, KGE stacking 0,824. Le Model Registry se
+> remplit au premier `--promote` qui aboutit.
+
+Chaque entraînement enregistre ses paramètres, ses métriques KGE et ses
+artefacts dans MLflow, pour comparer deux entraînements autrement qu'en
+diffant deux `results.json` à la main.
+
+Lancer le serveur (UI sur <http://localhost:5000>) :
+
+```bash
+docker compose up -d mlflow
+```
+
+Les entraînements le trouvent via `MLFLOW_TRACKING_URI` dans `.env` (cf.
+§Configuration — la même ligne sert à l'hôte et aux conteneurs). **Sans cette
+variable, MLflow est inerte** : l'entraînement tourne normalement, aucun run
+n'est enregistré — c'est le mode par défaut des tests et de la CI, qui n'ont
+donc jamais besoin d'un serveur.
+
+### Ce qui est enregistré
+
+| | Contenu |
+|---|---|
+| Paramètres | centrale, horizon, `meta_type`, `seq_len`, `n_splits`, `epochs`, `n_trials_*`, graine, **et la fenêtre d'évaluation** |
+| Métriques | `kge_lgbm` / `kge_lstm` / `kge_stacking`, KGE par régime hydrologique et par saison, KGE par pas d'échéance (en courbe) |
+| Artefacts | `results.json`, `meta_config.json`, tous les plots d'entraînement |
+| Tags | centrale, horizon, commit git, graine |
+
+La fenêtre d'évaluation (`eval_test_start`, `eval_n_train`…) est un paramètre
+et pas un détail : `split_train_test` est **positionnel** (20 % de fin), donc
+deux entraînements sur des CSV de longueurs différentes ne mesurent pas la
+même période. Comparer leurs KGE sans regarder cette fenêtre n'a pas de sens.
+
+### MLflow *et* DVC — pourquoi les deux
+
+Ils ne répondent pas à la même question. **DVC** versionne les octets
+(données et poids) et permet le retour arrière : `git checkout <tag> && dvc
+pull`. **MLflow** indexe et compare les expériences, et sert de registre
+lisible par un humain. Les deux se pointent mutuellement : le `run_id` MLflow
+est écrit dans `meta_config.json`, et le commit git est un tag du run.
+
+### Model Registry — promotion
+
+`train.py --promote` promeut un candidat qui bat la production, puis
+`promote_model` copie les artefacts, les versionne (`dvc add`), pose un commit
+et un tag git — et enregistre la version au registry MLflow sous le nom
+`projet_hydro-<centrale>-h<horizon>`, avec l'alias `@production`.
+
+Les deux versions se répondent : `version.json` porte le `mlflow_run_id`, et
+la version du registry porte le tag git en tag MLflow.
+
+L'enregistrement se fait **après** le commit et le tag git, hors du bloc de
+rollback : à ce stade la promotion est actée, et un registry injoignable ne
+doit pas annuler un modèle correctement promu. On perd le lien, pas le modèle.
+
+Ce qui est enregistré est le **répertoire d'artefacts**, pas une saveur MLflow
+chargeable : le modèle est un trio (LightGBM + BiLSTM + méta) plus ses
+scalers, et le chargement passe par `load_trained_models`. Le registry sert
+d'index et d'historique des promotions ; DVC porte les octets et le rollback.

@@ -3,8 +3,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from previ_r2d2.model.architectures.lightgbm.metrics import kge_loss, debit_quantiles
-from previ_r2d2.model.architectures.lightgbm.metrics import debit_weights
+from projet_hydro.model.architectures.lightgbm.metrics import kge_loss, debit_quantiles
+from projet_hydro.model.architectures.lightgbm.metrics import debit_weights
 
 
 def test_kge_loss_normal_variance_matches_hand_computed_value():

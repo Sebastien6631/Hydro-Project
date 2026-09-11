@@ -7,7 +7,7 @@ stages:
       hash: md5
       md5: cd097d2171f338118b4c8f52b7abed9f
       size: 3014
-    - path: src/previ_r2d2/preprocessing/debit/
+    - path: src/projet_hydro/preprocessing/debit/
       hash: md5
       md5: 099e310a52a285dd957012a070a5b1fa.dir
       size: 49517
@@ -28,7 +28,7 @@ stages:
       hash: md5
       md5: 25eefc1d0c0a10301ffd8dcbe11b8d45
       size: 42
-    - path: src/previ_r2d2/preprocessing/onboarding/validation.py
+    - path: src/projet_hydro/preprocessing/onboarding/validation.py
       hash: md5
       md5: 516e71d77003d8ff1c02129368bc2724
       size: 2417
@@ -52,12 +52,12 @@ stages:
       hash: md5
       md5: 23a63c44bbcf23f8f27f29ca30638f8c
       size: 42
-    - path: src/previ_r2d2/preprocessing/data_preparation/
+    - path: src/projet_hydro/preprocessing/data_preparation/
       hash: md5
       md5: a3cbc54dd0ff3a533dfbc852c6fb2883.dir
       size: 15578
       nfiles: 10
-    - path: src/previ_r2d2/preprocessing/meteo/open_meteo.py
+    - path: src/projet_hydro/preprocessing/meteo/open_meteo.py
       hash: md5
       md5: e2c6825db5e4f2b7a3265d45057a3038
       size: 8085
