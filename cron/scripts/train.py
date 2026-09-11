@@ -166,7 +166,7 @@ def run(dossier: str | None = None, horizon: int | None = None, force: bool = Fa
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dossier", help="Cibler une seule centrale (défaut : toutes les onboardées).")
-    parser.add_argument("--horizon", type=int, help="Test manuel ciblé sur cet horizon (8/48/72).")
+    parser.add_argument("--horizon", type=int, help="Test manuel ciblé sur cet horizon (8).")
     parser.add_argument(
         "--promote", action="store_true",
         help="Promouvoir le candidat s'il bat la production (copie dans models/, "

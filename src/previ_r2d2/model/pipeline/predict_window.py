@@ -10,7 +10,6 @@ import json
 import pandas as pd
 
 from previ_r2d2.common import config
-from previ_r2d2.model.pipeline.data_loading import resample_to_daily
 from previ_r2d2.preprocessing.data_preparation.data_preparation_csv import read_data_preparation_csv
 from previ_r2d2.preprocessing.data_preparation.dossier_window import build_dossier
 
@@ -29,14 +28,14 @@ def load_prediction_window(
     dossier: str, horizon_steps: int, timestep: str, now: pd.Timestamp,
     lookback_days: int = 90, source: str = "live",
 ) -> pd.DataFrame:
-    """Assemble la fenêtre [now - lookback_days, now + horizon_steps], resample en 1D si besoin.
+    """Assemble la fenêtre [now - lookback_days, now + horizon_steps].
 
     `source="live"` (défaut) : assemble dynamiquement via build_dossier (débit
     à jour Hub'Eau, météo dégradée en attendant l'API météo publique).
     `source="frozen"` : relit data_preparation.csv tel quel, `now` est alors
     ignoré et remplacé par la dernière ligne connue du fichier -- 100%
     reproductible, aucun appel réseau (utilisé par les tests bout en bout)."""
-    step = pd.Timedelta(hours=1) if timestep == "hourly" else pd.Timedelta(days=1)
+    step = pd.Timedelta(hours=1)
 
     if source == "frozen":
         path = config.CENTRALES_DIR / dossier / "data_preparation.csv"
@@ -52,7 +51,4 @@ def load_prediction_window(
         start = now - pd.Timedelta(days=lookback_days)
         end = now + horizon_steps * step
         df = build_dossier(rec, start, end)
-
-    if timestep == "1D":
-        df = resample_to_daily(df)
     return df

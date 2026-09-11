@@ -18,6 +18,7 @@ from previ_r2d2.model.architectures.lightgbm.predict import predict_lgbm_full
 from previ_r2d2.model.architectures.stacking import kge_components
 from previ_r2d2.model.pipeline.predict import predict_test_set
 from previ_r2d2.model.pipeline.predict_orchestrator import load_trained_models
+from previ_r2d2.tracking.mlflow_log import register_production_model
 
 
 def production_dir(dossier: str, horizon: int) -> Path:
@@ -86,10 +87,20 @@ def promote_model(dossier: str, horizon: int, candidate_weights_dir: Path, kge: 
     try:
         shutil.copytree(candidate_weights_dir, prod_dir)
 
+        # run_id repris du meta_config.json copie avec le candidat : c'est le
+        # lien entre la version DVC/git et le run MLflow qui l'a produite.
+        # Lecture tolerante : un meta_config absent ou illisible coute le lien
+        # vers MLflow, il ne doit pas faire echouer (donc annuler) la promotion.
+        try:
+            run_id = json.loads((prod_dir / "meta_config.json").read_text(encoding="utf-8")).get("mlflow_run_id")
+        except (OSError, ValueError):
+            run_id = None
+
         version_path.write_text(json.dumps({
             "version": version,
             "kge_stacking": round(kge, 4),
             "promoted_at": datetime.now().isoformat(),
+            "mlflow_run_id": run_id,
         }), encoding="utf-8")
 
         tag = f"{dossier}-h{horizon}-v{version}"
@@ -109,4 +120,9 @@ def promote_model(dossier: str, horizon: int, candidate_weights_dir: Path, kge: 
 
     if backup_dir.exists():
         shutil.rmtree(backup_dir)
+
+    # Hors du try : a ce stade la promotion est actee (fichiers copies, commit
+    # et tag poses). Un registry injoignable ne doit pas declencher le rollback.
+    register_production_model(dossier, horizon, run_id, tag)
+
     return version

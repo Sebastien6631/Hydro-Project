@@ -19,6 +19,18 @@ from pathlib import Path
 # src/previ_r2d2/common/config.py -> src/previ_r2d2/ -> src/ -> racine).
 ROOT = Path(__file__).resolve().parents[3]
 
+# `.env` (gitignoré, modèle dans .env.example) : chargé dans l'environnement
+# SANS écraser ce qui y est déjà. Les variables du shell et celles injectées par
+# compose (x-env, même vides) gardent donc la main -- un conteneur reste inerte
+# côté MLflow tant que compose ne lui donne rien. Parseur minimal KEY=VALUE.
+_env_file = ROOT / ".env"
+if _env_file.exists():
+    for _line in _env_file.read_text(encoding="utf-8").splitlines():
+        _line = _line.strip()
+        if _line and not _line.startswith("#") and "=" in _line:
+            _k, _v = _line.split("=", 1)
+            os.environ.setdefault(_k.strip(), _v.strip().strip("'\""))
+
 # Sortie OneGate + bv.json par dossier, et fichiers de référence partagés
 # (config-general.json) sous centrales/REFERENCE/.
 CENTRALES_DIR = ROOT / "centrales"

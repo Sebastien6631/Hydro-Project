@@ -92,6 +92,14 @@ def build_results(
     }
 
 
+def write_meta_config(meta_config: dict, weights_dir: Path) -> None:
+    """Extrait de write_artifacts pour etre rejouable : le run_id MLflow n'est
+    connu qu'apres les plots (ils sont loggues comme artefacts), donc apres
+    write_artifacts -- meta_config.json doit alors etre reecrit."""
+    with open(weights_dir / "meta_config.json", "w") as fh:
+        json.dump(meta_config, fh, indent=2)
+
+
 def write_artifacts(
     results: dict,
     meta_config: dict,
@@ -109,8 +117,7 @@ def write_artifacts(
     with open(weights_dir / "results.json", "w") as fh:
         json.dump(results, fh, indent=2)
 
-    with open(weights_dir / "meta_config.json", "w") as fh:
-        json.dump(meta_config, fh, indent=2)
+    write_meta_config(meta_config, weights_dir)
 
     pd.DataFrame({
         "datetime": df_sub.index,

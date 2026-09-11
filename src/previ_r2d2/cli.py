@@ -28,7 +28,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
     scope = parser.add_mutually_exclusive_group(required=True)
     scope.add_argument("--dossier", type=str, default=None, metavar="NOM", help="Nom exact du dossier (centrales/).")
-    scope.add_argument("--all-dossiers", action="store_true", help="Toutes les centrales x horizons 8/48/72.")
+    scope.add_argument("--all-dossiers", action="store_true", help="Toutes les centrales onboardées.")
 
     parser.add_argument("--horizon", type=int, default=None, choices=HORIZONS, help="Horizon (requis avec --dossier).")
     parser.add_argument("--meta", type=str, default="ridge", choices=["ridge", "lgbm"], help="Meta-learner.")

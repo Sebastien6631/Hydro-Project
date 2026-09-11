@@ -1,5 +1,5 @@
 """Archivage horaire des JSON de prévision -- avant que predict_orchestrator
-n'écrase prevision.json/enchere.json avec la nouvelle heure, copie l'existant
+n'écrase prevision.json avec la nouvelle heure, copie l'existant
 vers ARCHIVE_ROOT/<dossier>/<AAAA>/<MM>/<JJ>/<nom>_<horodatage>.json (un
 fichier par heure archivée, historique complet).
 
@@ -24,20 +24,17 @@ import pandas as pd
 
 
 def archive_previous_json(dossier: str, centrales_dir: Path, archive_root: Path, now: pd.Timestamp) -> list[Path]:
-    """Copie prevision.json/enchere.json (s'ils existent déjà) de
+    """Copie prevision.json (s'il existe déjà) de
     centrales/<dossier>/ vers l'archive NAS. Retourne les chemins archivés
     (liste vide si aucun fichier n'existait encore -- 1er run d'une centrale)."""
     src_dir = centrales_dir / dossier
     produced_at = now - pd.Timedelta(hours=1)
     dest_dir = archive_root / dossier / produced_at.strftime("%Y") / produced_at.strftime("%m") / produced_at.strftime("%d")
 
-    archived = []
-    for name in ("prevision.json", "enchere.json"):
-        src = src_dir / name
-        if not src.exists():
-            continue
-        dest_dir.mkdir(parents=True, exist_ok=True)
-        dest = dest_dir / f"{src.stem}_{produced_at.strftime('%Y%m%d_%Hh')}.json"
-        shutil.copy2(src, dest)
-        archived.append(dest)
-    return archived
+    src = src_dir / "prevision.json"
+    if not src.exists():
+        return []
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    dest = dest_dir / f"prevision_{produced_at.strftime('%Y%m%d_%Hh')}.json"
+    shutil.copy2(src, dest)
+    return [dest]

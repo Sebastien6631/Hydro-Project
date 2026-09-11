@@ -1,7 +1,6 @@
 """Orchestrateur d'entraînement -- port fidèle de run_one/run_train_meta
 (train_meta.py, Previ_v2) en une fonction pure appelant dans l'ordre les
-briques déjà portées. Pas de plots (SHAP/attention/comparaison), pas de
-MLflow/DVCLive (mlflow_run_id=None) -- portée réduite actée."""
+briques déjà portées."""
 
 from __future__ import annotations
 
@@ -17,9 +16,9 @@ from previ_r2d2.model.architectures.lightgbm.features import build_features
 from previ_r2d2.model.architectures.lightgbm.predict import predict_lgbm_full
 from previ_r2d2.model.architectures.stacking import meteo_cols, slice_lgbm_multistep
 from previ_r2d2.model.features.amont import shift_amont_columns
-from previ_r2d2.model.pipeline.artifacts import build_results, write_artifacts
+from previ_r2d2.model.pipeline.artifacts import build_results, write_artifacts, write_meta_config
 from previ_r2d2.model.pipeline.bv_config import bv_params_from_bv_json, transit_amont_from_bv_json
-from previ_r2d2.model.pipeline.data_loading import load_df, resample_to_daily, split_train_test
+from previ_r2d2.model.pipeline.data_loading import load_df, split_train_test
 from previ_r2d2.model.pipeline.oof_cache import (
     load_or_compute_lgbm_final,
     load_or_compute_oof_lgbm,
@@ -29,11 +28,14 @@ from previ_r2d2.model.pipeline.plots import generate_training_plots
 from previ_r2d2.model.pipeline.predict import predict_test_set
 from previ_r2d2.model.pipeline.stacking_fit import fit_stacking
 from previ_r2d2.model.seeding import set_seeds
+from previ_r2d2.tracking.mlflow_log import log_training_run
 
+# ponytail: h8 seul -- h48/h72 (journaliers, sortie enchere.json) retirés le
+# 2026-09-11, hors périmètre projet (skill hydro-mlops). Source unique des
+# horizons : train.py, predict-archive.py et cli.py bouclent sur ces clés.
+# `timestep` reste dans les signatures LightGBM/stacking, toujours "hourly".
 HORIZON_CFG = {
     8: {"horizon_steps": 8, "timestep": "hourly", "steps_per_day": 24},
-    48: {"horizon_steps": 2, "timestep": "1D", "steps_per_day": 1},
-    72: {"horizon_steps": 3, "timestep": "1D", "steps_per_day": 1},
 }
 MULT_POIDS = 4  # constante fixe Previ_v2 (lightgbm_model.py:289), jamais surchargée
 
@@ -54,7 +56,7 @@ def run_training(
     """Orchestre un entraînement complet (une centrale, un horizon) : chargement, OOF, fit final, fit Stacking, évaluation test, artefacts persistés."""
     cfg = HORIZON_CFG[horizon]
     horizon_steps, timestep, steps_per_day = cfg["horizon_steps"], cfg["timestep"], cfg["steps_per_day"]
-    n_splits_eff = 2 if timestep == "1D" else 3
+    n_splits_eff = 3
 
     bv_params = bv_params_from_bv_json(bv_json)
     transit_amont = transit_amont_from_bv_json(bv_json)
@@ -70,8 +72,6 @@ def run_training(
     outputs_dir.mkdir(parents=True, exist_ok=True)
 
     df = load_df(dossier)
-    if timestep == "1D":
-        df = resample_to_daily(df)
     df_train, df_test = split_train_test(df)
 
     X_train, y_train, _ = build_features(df_train, exutoire, bv_params, steps_per_day, horizon_steps, transit_amont)
@@ -164,6 +164,16 @@ def run_training(
         yt_v, pl_v, pt_v, stk_v, valid, y_test[valid], pred_stacking_multi[valid], lstm_idx_test[valid],
         dossier, horizon, weights_dir, outputs_dir,
     )
+
+    # Après generate_training_plots : les plots partent en artefacts du run, donc
+    # le run_id n'existe qu'ici -- meta_config.json, déjà écrit par
+    # write_artifacts, est réécrit pour le porter. Inerte sans MLFLOW_TRACKING_URI.
+    meta_config["mlflow_run_id"] = log_training_run(
+        results, meta_config, weights_dir,
+        hyperparams={"epochs": epochs, "n_trials_lgbm": n_trials_lgbm,
+                     "n_trials_final": n_trials_final, "mult_poids": MULT_POIDS},
+    )
+    write_meta_config(meta_config, weights_dir)
 
     # Doit rester après write_artifacts : _eval_context contient des ndarrays/
     # DataFrames non sérialisables JSON, write_artifacts json.dump(results) plus

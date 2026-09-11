@@ -21,12 +21,6 @@ def load_df(dossier: str) -> pd.DataFrame:
     return df
 
 
-def resample_to_daily(df: pd.DataFrame) -> pd.DataFrame:
-    """Rééchantillonnage journalier : precipitation* sommée, le reste moyenné."""
-    agg = {col: ("sum" if "precipitation" in col.lower() else "mean") for col in df.columns}
-    return df.resample("1D").agg(agg).dropna(subset=["debit_m3s"])
-
-
 def split_train_test(df: pd.DataFrame, test_ratio: float = 0.20) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Split positionnel chronologique (train = premiers (1-test_ratio), test = le reste)."""
     n = len(df)

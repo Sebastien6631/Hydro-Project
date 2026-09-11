@@ -101,43 +101,6 @@ def write_prevision_json(centrales_dir, dossier, rec, now, now_ts, points, puiss
     path.write_text(json.dumps(data, indent=2), encoding="utf-8")
 
 
-def build_enchere_points(out_df: pd.DataFrame, rec: dict) -> list[dict]:
-    """Construit la liste de points pour une clé J2/J3 de enchere.json directement depuis out_df (série continue observé+prédit, déjà tronquée à partir de l'heure de lancement)."""
-    points = []
-    for row in out_df.itertuples():
-        q_entrant = float(row.q_entrant_m3s)
-        hydro = compute_hydraulic_point(q_entrant, rec, pd.Timestamp(row.datetime))
-        points.append({
-            "datetime": pd.Timestamp(row.datetime).replace(microsecond=0).isoformat(),
-            "debit_m3s": round(q_entrant, 3),
-            "puissance_kW": hydro["puissance"],
-            "pmax_dyn_kW": hydro["pmax_dyn"],
-            "chute_m": hydro["chute_estimee"],
-            "rendement_pct": hydro["rendement_estime"],
-            "q_entrant_m3s": round(q_entrant, 3),
-            "q_turbinable_m3s": hydro["debit_turbinable"],
-            "q_reserve_m3s": hydro["debit_reserve"],
-        })
-    return points
-
-
-def write_enchere_json(centrales_dir, dossier, rec, now, now_ts, key, points):
-    """Fusionne (lecture-modification-écriture) la clé J2 ou J3 dans centrales/{dossier}/enchere.json."""
-    path = centrales_dir / dossier / "enchere.json"
-    if path.exists():
-        data = json.loads(path.read_text(encoding="utf-8"))
-    else:
-        data = {
-            "centrale": dossier, "is-current": True,
-            "priorite": priorite_groupe_1(rec), "type": rec.get("type"),
-            "runs": {"model_type": "meta", "model_version": "unknown", "previsions": {}},
-        }
-    data["generation-date"] = now.strftime("%Y-%m-%d-T%H:%M:%S")
-    data["data-date"] = now_ts.strftime("%Y-%m-%d-T%H:%M:%S")
-    data["runs"]["previsions"][key] = points
-    path.write_text(json.dumps(data, indent=2), encoding="utf-8")
-
-
 def load_trained_models(weights_dir, horizon_steps: int, n_features: int):
     """Charge BiLSTM (poids + scalers), lgbm_final.pkl, meta.pkl, meta_scaler.pkl depuis weights_dir."""
     # map_location="cpu" d'abord (un checkpoint entraîné sur GPU doit rester
@@ -233,7 +196,7 @@ def run_prediction(
     decalage_h = round(transit_centrale.get(season_for_month(month_now), 0))
     logger.info("%s h%s -- decalage_h=%dh (saison=%s)", dossier, horizon, decalage_h, season_for_month(month_now))
 
-    step = pd.Timedelta(hours=1) if timestep == "hourly" else pd.Timedelta(days=1)
+    step = pd.Timedelta(hours=1)
     future_dates_turbine = pd.DatetimeIndex([
         now_ts + pd.Timedelta(hours=decalage_h) + (k + 1) * step for k in range(horizon_steps)
     ])
@@ -246,7 +209,7 @@ def run_prediction(
     # + type_col "observe"/"prediction") -- même conversion turbine (facteur_debit
     # + decalage_h) que les points prédits, pour un CSV continu utilisable à
     # partir de n'importe quelle heure, pas seulement le futur.
-    lookback_periods = 48 if timestep == "hourly" else 5
+    lookback_periods = 48
     hist_debit = df_window.loc[df_window.index <= now_ts, "debit_m3s"].dropna().tail(lookback_periods)
     hist_dates_turbine = pd.DatetimeIndex(hist_debit.index + pd.Timedelta(hours=decalage_h))
     hist_dates_display = to_display_timezone(hist_dates_turbine)
@@ -302,15 +265,9 @@ def run_prediction(
     # l'heure de lancement réelle était 16h).
     display_now_ts = to_display_timezone(pd.DatetimeIndex([now_ts]))[0]
 
-    if horizon == 8:
-        points = build_prevision_points(out_df_json, rec)
-        write_prevision_json(config.CENTRALES_DIR, dossier, rec, now, display_now_ts, points, puissance_reel, meta_config)
-        logger.info("%s h%s -- prevision.json écrit (%d points)", dossier, horizon, len(points))
-    else:
-        key = "J2" if horizon == 48 else "J3"
-        points = build_enchere_points(out_df_json, rec)
-        write_enchere_json(config.CENTRALES_DIR, dossier, rec, now, display_now_ts, key, points)
-        logger.info("%s h%s -- enchere.json écrit (clé %s, %d points)", dossier, horizon, key, len(points))
+    points = build_prevision_points(out_df_json, rec)
+    write_prevision_json(config.CENTRALES_DIR, dossier, rec, now, display_now_ts, points, puissance_reel, meta_config)
+    logger.info("%s h%s -- prevision.json écrit (%d points)", dossier, horizon, len(points))
 
     return {
         "centrale": dossier,
