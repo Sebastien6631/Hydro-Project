@@ -13,13 +13,13 @@ _spec.loader.exec_module(predict_archive_script)
 
 
 def test_run_skips_dossiers_without_production_model(tmp_path, monkeypatch):
-    from previ_r2d2.common import config as cfg_mod
+    from projet_hydro.common import config as cfg_mod
 
     monkeypatch.setattr(cfg_mod, "ROOT", tmp_path)
     monkeypatch.setattr(cfg_mod, "CENTRALES_DIR", tmp_path / "centrales")
     monkeypatch.setattr(cfg_mod, "MODELS_DIR", tmp_path / "models")
     monkeypatch.setattr(cfg_mod, "ARCHIVE_ROOT", tmp_path / "ARCHIVE")
-    from previ_r2d2.common import dvc_markers
+    from projet_hydro.common import dvc_markers
 
     monkeypatch.setattr(dvc_markers, "MARKERS_DIR", tmp_path / "logs" / "dvc_markers")
 
@@ -33,13 +33,13 @@ def test_run_skips_dossiers_without_production_model(tmp_path, monkeypatch):
 
 
 def test_run_archives_then_predicts_when_model_exists(tmp_path, monkeypatch):
-    from previ_r2d2.common import config as cfg_mod
+    from projet_hydro.common import config as cfg_mod
 
     monkeypatch.setattr(cfg_mod, "ROOT", tmp_path)
     monkeypatch.setattr(cfg_mod, "CENTRALES_DIR", tmp_path / "centrales")
     monkeypatch.setattr(cfg_mod, "MODELS_DIR", tmp_path / "models")
     monkeypatch.setattr(cfg_mod, "ARCHIVE_ROOT", tmp_path / "ARCHIVE")
-    from previ_r2d2.common import dvc_markers
+    from projet_hydro.common import dvc_markers
 
     monkeypatch.setattr(dvc_markers, "MARKERS_DIR", tmp_path / "logs" / "dvc_markers")
 
@@ -72,13 +72,13 @@ def test_run_continues_after_one_dossier_fails(tmp_path, monkeypatch, caplog):
     ponctuel...) ne doit jamais empêcher la prédiction des autres centrales
     ayant un modèle en production ce cycle horaire -- même isolation par
     (dossier, horizon) que train.py/onboarding-check.py::run()."""
-    from previ_r2d2.common import config as cfg_mod
+    from projet_hydro.common import config as cfg_mod
 
     monkeypatch.setattr(cfg_mod, "ROOT", tmp_path)
     monkeypatch.setattr(cfg_mod, "CENTRALES_DIR", tmp_path / "centrales")
     monkeypatch.setattr(cfg_mod, "MODELS_DIR", tmp_path / "models")
     monkeypatch.setattr(cfg_mod, "ARCHIVE_ROOT", tmp_path / "ARCHIVE")
-    from previ_r2d2.common import dvc_markers
+    from projet_hydro.common import dvc_markers
 
     monkeypatch.setattr(dvc_markers, "MARKERS_DIR", tmp_path / "logs" / "dvc_markers")
 

@@ -5,8 +5,8 @@ import json
 import numpy as np
 import pandas as pd
 
-from previ_r2d2.common import config
-from previ_r2d2.preprocessing.data_preparation.dossier_window import build_dossier, to_hourly
+from projet_hydro.common import config
+from projet_hydro.preprocessing.data_preparation.dossier_window import build_dossier, to_hourly
 
 
 def test_to_hourly_resamples_non_empty_series():

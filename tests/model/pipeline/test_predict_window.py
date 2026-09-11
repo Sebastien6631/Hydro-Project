@@ -6,8 +6,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from previ_r2d2.common import config
-from previ_r2d2.model.pipeline.predict_window import find_record, load_prediction_window
+from projet_hydro.common import config
+from projet_hydro.model.pipeline.predict_window import find_record, load_prediction_window
 
 
 def test_find_record_returns_matching_dossier(tmp_path, monkeypatch):
@@ -62,7 +62,7 @@ def test_load_prediction_window_covers_lookback_and_horizon(tmp_path, monkeypatc
 
 
 def test_load_prediction_window_frozen_reads_data_preparation_csv(tmp_path, monkeypatch):
-    from previ_r2d2.preprocessing.data_preparation.data_preparation_csv import write_data_preparation_csv
+    from projet_hydro.preprocessing.data_preparation.data_preparation_csv import write_data_preparation_csv
 
     centrales_dir = tmp_path / "centrales"
     reference_dir = tmp_path / "REFERENCE"

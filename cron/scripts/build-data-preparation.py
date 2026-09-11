@@ -25,16 +25,16 @@ import sys
 
 import pandas as pd
 
-from previ_r2d2.common.console import force_utf8
-from previ_r2d2.preprocessing.meteo.open_meteo import ARCHIVE_MIN_DATE
-from previ_r2d2.common import config
-from previ_r2d2.common.dvc_markers import write as write_marker
-from previ_r2d2.preprocessing.data_preparation.data_preparation_csv import (
+from projet_hydro.common.console import force_utf8
+from projet_hydro.preprocessing.meteo.open_meteo import ARCHIVE_MIN_DATE
+from projet_hydro.common import config
+from projet_hydro.common.dvc_markers import write as write_marker
+from projet_hydro.preprocessing.data_preparation.data_preparation_csv import (
     merge_data_preparation,
     read_data_preparation_csv,
     write_data_preparation_csv,
 )
-from previ_r2d2.preprocessing.data_preparation.dossier_window import build_dossier
+from projet_hydro.preprocessing.data_preparation.dossier_window import build_dossier
 
 logger = logging.getLogger("build-data-preparation")
 

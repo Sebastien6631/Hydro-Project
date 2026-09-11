@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from previ_r2d2.model.architectures.lightgbm.predict import predict_lgbm_full, predict_lgbm_future
+from projet_hydro.model.architectures.lightgbm.predict import predict_lgbm_full, predict_lgbm_future
 
 
 def make_full_df(n_hours=400):
@@ -63,7 +63,7 @@ def test_predict_lgbm_full_returns_all_nan_when_no_feature_available():
 
 def test_predict_lgbm_full_aligns_predictions_on_correct_df_positions():
     df = make_full_df()
-    from previ_r2d2.model.architectures.lightgbm.features import build_features
+    from projet_hydro.model.architectures.lightgbm.features import build_features
 
     X, _, date = build_features(df, EXUTOIRE, BV_PARAMS, steps_per_day=24, horizon=8, transit_amont={})
     top_features = list(X.columns[:3])
@@ -91,7 +91,7 @@ def test_predict_lgbm_future_returns_all_nan_when_model_is_none():
 
 def test_predict_lgbm_future_nominal_returns_correct_shape_and_dates():
     df = make_full_df()
-    from previ_r2d2.model.architectures.lightgbm.features import build_future_features
+    from projet_hydro.model.architectures.lightgbm.features import build_future_features
 
     X, _, date = build_future_features(df, EXUTOIRE, BV_PARAMS, steps_per_day=24, horizon=8, transit_amont={})
     top_features = list(X.columns[:3])

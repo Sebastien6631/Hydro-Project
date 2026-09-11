@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from previ_r2d2.model.pipeline.hydraulic import (
+from projet_hydro.model.pipeline.hydraulic import (
     compute_hydraulic_point,
     compute_q_non_turbinable,
     dispatch_groupes,

@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 import requests
 
-from previ_r2d2.preprocessing.debit.eaufrance import (
+from projet_hydro.preprocessing.debit.eaufrance import (
     RETRY_ATTEMPTS,
     EauFranceClient,
     series_range,

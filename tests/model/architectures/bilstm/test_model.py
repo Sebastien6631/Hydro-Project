@@ -5,7 +5,7 @@ from unittest.mock import patch
 import numpy as np
 import torch
 
-from previ_r2d2.model.architectures.bilstm.model import BiLSTMHydro
+from projet_hydro.model.architectures.bilstm.model import BiLSTMHydro
 
 
 def test_forward_multi_horizon_returns_batch_by_horizon_shape():
@@ -114,7 +114,7 @@ def test_fit_oof_resumes_from_checkpoint_skipping_completed_folds(tmp_path):
             calls.append(1)
         return original_deepcopy(obj, *args, **kwargs)
 
-    with patch("previ_r2d2.model.architectures.bilstm.model.copy.deepcopy", side_effect=counting_deepcopy):
+    with patch("projet_hydro.model.architectures.bilstm.model.copy.deepcopy", side_effect=counting_deepcopy):
         oof = model.fit_oof(
             X_seq, y, n_splits=3, epochs=2, horizon=horizon, batch_size=32,
             checkpoint_path=checkpoint_path,

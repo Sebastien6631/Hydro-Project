@@ -13,12 +13,12 @@ _spec.loader.exec_module(build_data_preparation_script)
 
 
 def test_run_logs_summary(tmp_path, monkeypatch, caplog):
-    from previ_r2d2.common import config as cfg_mod
+    from projet_hydro.common import config as cfg_mod
 
     monkeypatch.setattr(cfg_mod, "ROOT", tmp_path)
     monkeypatch.setattr(cfg_mod, "REFERENCE_DIR", tmp_path / "centrales" / "REFERENCE")
     monkeypatch.setattr(cfg_mod, "NAS_DATA_ROOT", tmp_path / "nas")
-    from previ_r2d2.common import dvc_markers
+    from projet_hydro.common import dvc_markers
 
     monkeypatch.setattr(dvc_markers, "MARKERS_DIR", tmp_path / "logs" / "dvc_markers")
 

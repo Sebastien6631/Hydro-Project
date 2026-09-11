@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from previ_r2d2.common import config
-from previ_r2d2.preprocessing.data_preparation.debit_source import debit_series
+from projet_hydro.common import config
+from projet_hydro.preprocessing.data_preparation.debit_source import debit_series
 
 
 

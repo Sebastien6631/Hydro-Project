@@ -4,7 +4,7 @@ stages:
     cmd: python cron/scripts/maj-data.py
     deps:
       - centrales/REFERENCE/config-general.json
-      - src/previ_r2d2/preprocessing/debit/
+      - src/projet_hydro/preprocessing/debit/
     # Sans outs: (source réelle Hub'Eau externe, non trackée par DVC) --
     # always_changed force l'exécution à chaque `dvc repro`, le script
     # gérant lui-même son incrémental ("dernier point du CSV -> maintenant").
@@ -19,7 +19,7 @@ stages:
     deps:
       - centrales/REFERENCE/config-general.json
       - logs/dvc_markers/debit.json
-      - src/previ_r2d2/preprocessing/onboarding/validation.py
+      - src/projet_hydro/preprocessing/onboarding/validation.py
     always_changed: true
     outs:
       - logs/dvc_markers/onboarding.json:
@@ -32,8 +32,8 @@ stages:
       - logs/dvc_markers/debit.json
       - logs/dvc_markers/onboarding.json
       - centrales/REFERENCE/config-general.json
-      - src/previ_r2d2/preprocessing/data_preparation/
-      - src/previ_r2d2/preprocessing/meteo/open_meteo.py
+      - src/projet_hydro/preprocessing/data_preparation/
+      - src/projet_hydro/preprocessing/meteo/open_meteo.py
     # Deux sources externes non trackées par DVC : Hub'Eau (débit, déjà écrit
     # par le stage amont) et l'API météo, interrogée à chaque exécution. D'où
     # always_changed -- le script gère lui-même son incrémental côté débit,
@@ -48,7 +48,7 @@ stages:
     cmd: python cron/scripts/validate-data.py
     deps:
       - logs/dvc_markers/data_preparation.json
-      - src/previ_r2d2/preprocessing/data_preparation/validation.py
+      - src/projet_hydro/preprocessing/data_preparation/validation.py
     # Comme les stages amont : la vraie donnée (centrales/<d>/data_preparation.csv)
     # est hors DVC, on force à chaque repro. Erreur de contrat -> exit != 0 -> repro stoppe.
     always_changed: true

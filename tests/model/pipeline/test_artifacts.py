@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from sklearn.linear_model import Ridge
 
-from previ_r2d2.model.pipeline.artifacts import build_results, write_artifacts
+from projet_hydro.model.pipeline.artifacts import build_results, write_artifacts
 
 
 def make_test_predictions(n=40):

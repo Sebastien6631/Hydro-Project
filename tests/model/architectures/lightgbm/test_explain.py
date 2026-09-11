@@ -3,8 +3,8 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from previ_r2d2.model.architectures.lightgbm.explain import build_shap_explanation, plot_shap_bar, plot_shap_beeswarm
-from previ_r2d2.model.architectures.lightgbm.training import fit_final
+from projet_hydro.model.architectures.lightgbm.explain import build_shap_explanation, plot_shap_bar, plot_shap_beeswarm
+from projet_hydro.model.architectures.lightgbm.training import fit_final
 
 
 def make_full_df(n_hours=400):
@@ -30,7 +30,7 @@ BV_PARAMS = {"altitude_bv": 300, "surface_km2": 100, "k_base": 1.0, "exposition"
 
 
 def make_lgbm_result():
-    from previ_r2d2.model.architectures.lightgbm.features import build_features
+    from projet_hydro.model.architectures.lightgbm.features import build_features
 
     df = make_full_df()
     X, y, _ = build_features(df, EXUTOIRE, BV_PARAMS, steps_per_day=24, horizon=8, transit_amont={})

@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from previ_r2d2.model.features.debit_autoregressif import compute_debit_autoregressif_features
+from projet_hydro.model.features.debit_autoregressif import compute_debit_autoregressif_features
 
 
 def make_df(n_hours=200, cible_col="debit_m3s"):

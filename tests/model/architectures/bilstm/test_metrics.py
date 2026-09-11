@@ -4,8 +4,8 @@ import numpy as np
 import pytest
 import torch
 
-from previ_r2d2.model.architectures.bilstm.metrics import kge_loss_torch, kge_numpy
-from previ_r2d2.model.architectures.lightgbm.metrics import kge_loss
+from projet_hydro.model.architectures.bilstm.metrics import kge_loss_torch, kge_numpy
+from projet_hydro.model.architectures.lightgbm.metrics import kge_loss
 
 
 def test_kge_loss_torch_1d_matches_lightgbm_kge_loss_for_same_data():

@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from previ_r2d2.preprocessing.meteo import open_meteo
+from projet_hydro.preprocessing.meteo import open_meteo
 
 
 def _reponse(times, temps_c, precip_mm, elevation=943.0):

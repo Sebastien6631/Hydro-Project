@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from previ_r2d2.preprocessing.debit.hubeau import HubEauClient, HubEauError
+from projet_hydro.preprocessing.debit.hubeau import HubEauClient, HubEauError
 
 
 def _fake_response(status_code: int, json_data: dict):

@@ -33,14 +33,14 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from previ_r2d2.common import config
-from previ_r2d2.model.pipeline.bv_config import transit_centrale_from_bv_json
-from previ_r2d2.model.pipeline.predict_orchestrator import (
+from projet_hydro.common import config
+from projet_hydro.model.pipeline.bv_config import transit_centrale_from_bv_json
+from projet_hydro.model.pipeline.predict_orchestrator import (
     run_prediction,
     season_for_month,
     to_display_timezone,
 )
-from previ_r2d2.preprocessing.data_preparation.data_preparation_csv import read_data_preparation_csv
+from projet_hydro.preprocessing.data_preparation.data_preparation_csv import read_data_preparation_csv
 
 _TRAIN_SPEC = importlib.util.spec_from_file_location(
     "train_script_e2e", Path(__file__).resolve().parents[2] / "cron" / "scripts" / "train.py"

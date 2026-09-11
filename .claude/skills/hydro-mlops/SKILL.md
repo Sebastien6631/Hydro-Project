@@ -2,13 +2,13 @@
 name: hydro-mlops
 description: |
   Cadrage, roadmap et SUIVI D'AVANCEMENT du projet MLOps Hydro-Project
-  (previ-R2-D2), à deux — Xavier + Sébastien. Soutenance début novembre 2026,
+  (projet_hydro), à deux — Xavier + Sébastien. Soutenance début novembre 2026,
   points hebdo. Utilise ce skill quand quelqu'un demande : où on en est,
   quoi faire ensuite, qui fait quoi, le plan / la roadmap, l'état
   d'avancement, les décisions de cadrage, les deadlines, la correspondance
   avec le cours DataScientest / la grille du jury, le workflow d'équipe
   (branches, dépôts GitHub + DagsHub), ou pour cocher une tâche faite dans le
-  tableau de suivi. Le skill technique du code (architecture previ-R2-D2,
+  tableau de suivi. Le skill technique du code (architecture projet_hydro,
   pipeline DVC, pièges connus) est `hydro-projet`, séparé.
 ---
 
@@ -16,7 +16,7 @@ description: |
 
 ## 1. Objectif & périmètre
 
-Construire une **plateforme MLOps de bout en bout** autour de **previ-R2-D2**
+Construire une **plateforme MLOps de bout en bout** autour de **projet_hydro**
 (prévision de débit → puissance de centrales hydroélectriques ; modèle
 hybride **LightGBM + BiLSTM + stacking** ; métrique **KGE** — Kling-Gupta
 Efficiency), comme projet fil rouge de la formation DataScientest, spécialité
@@ -24,8 +24,9 @@ Efficiency), comme projet fil rouge de la formation DataScientest, spécialité
 
 | Élément | Décision |
 |---|---|
+| Package Python | `projet_hydro` — ex-`previ_r2d2`, renommé le 2026-09-11 (`git mv` + 3 graphies). Après un pull : `pip install -e . --no-deps` et `docker compose build`. |
 | Centrales | **2** : `apas_G1_G4`, `touzac_g2_G2` (`nancy_A` retirée au nettoyage) |
-| Horizon | **h8 uniquement** (h48 / h72 hors périmètre — « pour ne pas se compliquer ») |
+| Horizon | **h8 uniquement** — h48 / h72 **retirés du code** le 2026-09-11 (`HORIZON_CFG` à une clé, branche journalière et `enchere.json` supprimées) |
 | Données | ✅ **API Open-Meteo / Météo-France + Hub'Eau** branchées (`preprocessing/meteo/open_meteo.py`) — ingestion temps réel possible (`source="live"`). `source="frozen"` (ancré sur la dernière ligne de `data_preparation.csv`) reste dispo pour une prédiction 100 % reproductible (utilisé par l'API). |
 | LLM / agents | **aucun** (si un jour jugé utile → 2ᵉ évaluation obligatoire pour suivre ses perfs) |
 | GPU | non disponible sur les VM DataScientest — CPU par défaut ; `model/device.py` (support GPU) = local / bonus |
@@ -189,8 +190,8 @@ consulter, pas à copier tel quel).
 
 | Élément | État | Détail |
 |---|---|---|
-| Cœur ML (LightGBM + BiLSTM + stacking) | ✅ | `src/previ_r2d2/model/` |
-| Preprocessing (débit, BV, data_preparation, météo) | ✅ | `src/previ_r2d2/preprocessing/` |
+| Cœur ML (LightGBM + BiLSTM + stacking) | ✅ | `src/projet_hydro/model/` |
+| Preprocessing (débit, BV, data_preparation, météo) | ✅ | `src/projet_hydro/preprocessing/` |
 | Pipeline DVC complet (3 + 1 + 1 stages) | ✅ | `debit → onboarding_check → data_preparation` puis `train` puis `predict_archive` |
 | Reproductibilité (graines fixées) | ✅ | `model/seeding.py` |
 | Support GPU + early stopping | ✅ | `model/device.py` (GPU = local seulement) |
@@ -198,7 +199,8 @@ consulter, pas à copier tel quel).
 | Tests unitaires | ✅ | `pytest -q` |
 | Modes d'entraînement automatisés | ❌ retirés | à re-brancher via Airflow (phase 3) |
 | **Docker / Compose** (env conteneurisé) | ✅ | `Dockerfile` + `docker-compose.yml` + `entrypoint.sh` — `docker compose run --rm app` → 340 tests verts. Section README « Conteneurisation ». |
-| MLflow · API · validation données · CI · monitoring · k8s | ⬜ | **à construire** |
+| **MLflow + Model Registry** | ✅ | `src/projet_hydro/tracking/mlflow_log.py`, service `mlflow` dans compose. Section README « Suivi d'expériences ». |
+| CI · monitoring · k8s | ⬜ | **à construire** |
 
 ### Phase 1
 
@@ -217,12 +219,12 @@ consulter, pas à copier tel quel).
 
 | # | Tâche | Qui | État | Notes |
 |---|---|---|---|---|
-| 2.1 | Suivi d'expériences MLflow | libre | ⬜ 🧪 | tracking + params + métriques + artefacts |
-| 2.2 | Model Registry + promotion (alias `@production`) | libre | ⬜ 🧪 | câblé sur `promotion.py` |
+| 2.1 | Suivi d'expériences MLflow | sg | ✅ | `phase2/mlflow-tracking` → PR #7 vers `dev`. `tracking/mlflow_log.py` : run par entraînement (params + fenêtre d'évaluation, KGE global/régime/saison/pas, artefacts, tags git+seed). **Inerte sans `MLFLOW_TRACKING_URI`** (tests/CI sans serveur, `tests/conftest.py` l'impose), jamais bloquant si le serveur tombe. `.env` chargé par `config.py`, une seule valeur hôte/conteneur via `${VAR:+…}` compose. Validé le 2026-09-11 : run `touzac_g2_G2-h8` loggé, KGE 0.824. |
+| 2.2 | Model Registry + promotion (alias `@production`) | sg | ✅ | même branche. `register_production_model` appelé par `promote_model` **après** commit+tag git, hors rollback. Nom `projet_hydro-<centrale>-h8`, tag MLflow = tag git, `version.json` porte le `run_id`. MLflow indexe, DVC porte les octets. |
 | 2.3 | Versioning données + modèles | — | ✅ | DVC + tags git |
 | 2.4 | Découpage microservices | libre | ⬜ | services `api` / `mlflow` / `db` / `minio` dans compose |
 | 2.5 | NGINX reverse proxy | libre | ⬜ 🧪 | point d'entrée unique |
-| 2.6 | MinIO (artefacts MLflow) | libre | ⬜ | ou FS local si on simplifie |
+| 2.6 | MinIO (artefacts MLflow) | xh | 🔄 | serveur déjà en `--serve-artifacts` : seul le service `mlflow` du compose change (`--artifacts-destination=s3://…` + creds côté serveur), zéro ligne dans `mlflow_log.py`. Basculer avant les premiers vrais entraînements (les runs déjà loggés garderaient leurs artefacts dans l'ancien volume). |
 
 ### Phase 3
 
@@ -281,7 +283,7 @@ déjà résolu là-dedans, et alors **re-porter au plus simple**, pas copier.
 
 ## 11. Références
 
-- **`hydro-projet`** (skill) — architecture technique de previ-R2-D2,
+- **`hydro-projet`** (skill) — architecture technique de projet_hydro,
   pipeline DVC, pièges connus, script par script.
 - **`README.md`** — installation (env conda `projet-mlops`), pipeline DVC.
 - **Archive formation** : `~/Documents/DataScientest-Formation/` — cours par

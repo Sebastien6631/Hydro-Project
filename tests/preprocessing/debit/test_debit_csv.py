@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from previ_r2d2.preprocessing.debit.debit_csv import read_debit_csv
+from projet_hydro.preprocessing.debit.debit_csv import read_debit_csv
 
 
 def test_read_debit_csv_returns_empty_series_when_file_absent(tmp_path):

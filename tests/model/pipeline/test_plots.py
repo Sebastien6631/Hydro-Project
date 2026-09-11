@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from previ_r2d2.model.pipeline.plots import (
+from projet_hydro.model.pipeline.plots import (
     plot_kge_by_step,
     plot_kge_radar,
     plot_ridge_coefficients,

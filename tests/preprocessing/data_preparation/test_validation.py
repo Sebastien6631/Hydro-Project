@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from previ_r2d2.preprocessing.data_preparation.validation import (
+from projet_hydro.preprocessing.data_preparation.validation import (
     ValidationReport,
     validate_data_preparation,
 )
