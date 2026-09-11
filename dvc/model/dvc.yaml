@@ -12,7 +12,7 @@ stages:
     cmd: python cron/scripts/train.py --promote
     deps:
       - centrales/REFERENCE/config-general.json
-      - logs/dvc_markers/data_preparation.json
+      - logs/dvc_markers/validate.json
       - src/projet_hydro/model/
       - cron/scripts/train.py
       - cron/scripts/build-data-preparation.py

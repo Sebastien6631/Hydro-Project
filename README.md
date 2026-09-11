@@ -520,6 +520,27 @@ Le modèle est chargé depuis `models/<dossier>/h8/` (versionné DVC) — faire
 `docker compose run --rm app dvc pull` au préalable. Sécurisation (auth,
 rate-limit, logs structurés) : phase 3.
 
+## Validation des données (contrat) — Phase 1
+
+`data_preparation.csv` doit respecter un contrat avant d'entraîner. La
+vérification est *hand-rolled* (`preprocessing/data_preparation/validation.py`)
+et sépare **erreurs** (donnée inexploitable → le pipeline s'arrête) et
+**avertissements** (donnée acceptée, à surveiller).
+
+| Niveau | Règles |
+|---|---|
+| Erreur | fichier vide · colonne `debit_m3s` absente / non numérique / vide · index non temporel, non trié, ou avec doublons · débit négatif |
+| Warning | > 10 % de cible manquante · historique < 180 j · trou > 24 h dans l'index horaire · colonne entièrement vide (météo figée) |
+
+```bash
+docker compose run --rm app python cron/scripts/validate-data.py
+docker compose run --rm app python cron/scripts/validate-data.py --dossier apas_G1_G4 --strict
+```
+
+Stage DVC `validate` (dans `dvc/preprocessing/dvc.yaml`, après `data_preparation`) :
+le stage `train` en dépend, donc `dvc repro` s'arrête avant l'entraînement si
+une erreur de contrat est détectée. Rapport JSON par centrale sous `logs/validation/`.
+
 ## Suivi d'expériences (MLflow) — Phase 2
 
 Chaque entraînement enregistre ses paramètres, ses métriques KGE et ses

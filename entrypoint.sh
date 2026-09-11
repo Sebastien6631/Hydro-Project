@@ -3,6 +3,9 @@
 set -e
 
 if [ -n "$DAGSHUB_TOKEN" ] && [ -f .dvc/config ]; then
+  # `auth basic` explicite : sans ça DagsHub répond 401 et DVC affiche
+  # « missing cache files » au lieu d'une erreur d'authentification.
+  dvc remote modify dagshub --local auth basic                   2>/dev/null || true
   dvc remote modify dagshub --local user "${DAGSHUB_USER:-token}" 2>/dev/null || true
   dvc remote modify dagshub --local password "$DAGSHUB_TOKEN"     2>/dev/null || true
 fi
