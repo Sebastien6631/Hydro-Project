@@ -3,8 +3,8 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from previ_r2d2.model.architectures.bilstm.explain import plot_attention_heatmaps
-from previ_r2d2.model.architectures.bilstm.model import BiLSTMHydro
+from projet_hydro.model.architectures.bilstm.explain import plot_attention_heatmaps
+from projet_hydro.model.architectures.bilstm.model import BiLSTMHydro
 
 
 def make_fixture(n_seq=30, seq_len=20, horizon=3, n_features=3):

@@ -3,8 +3,8 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from previ_r2d2.model.pipeline.orchestrator import run_training
-from previ_r2d2.preprocessing.data_preparation.data_preparation_csv import write_data_preparation_csv
+from projet_hydro.model.pipeline.orchestrator import run_training
+from projet_hydro.preprocessing.data_preparation.data_preparation_csv import write_data_preparation_csv
 
 
 def make_synthetic_df(n_periods=3000, freq="1h", noise_std=0.2 / 24**0.5):
@@ -27,7 +27,7 @@ def make_synthetic_df(n_periods=3000, freq="1h", noise_std=0.2 / 24**0.5):
 
 
 def test_run_training_end_to_end_produces_results_and_artifacts(tmp_path, monkeypatch):
-    from previ_r2d2.common import config as cfg_mod
+    from projet_hydro.common import config as cfg_mod
 
     centrales_dir = tmp_path / "centrales"
     monkeypatch.setattr(cfg_mod, "CENTRALES_DIR", centrales_dir)
@@ -74,7 +74,7 @@ def test_run_training_end_to_end_produces_results_and_artifacts(tmp_path, monkey
 
 
 def test_run_training_accepts_explicit_weights_dir(tmp_path, monkeypatch):
-    from previ_r2d2.common import config as cfg_mod
+    from projet_hydro.common import config as cfg_mod
 
     centrales_dir = tmp_path / "centrales"
     monkeypatch.setattr(cfg_mod, "CENTRALES_DIR", centrales_dir)

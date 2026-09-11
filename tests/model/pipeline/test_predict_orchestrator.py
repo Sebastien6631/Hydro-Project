@@ -6,11 +6,11 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from previ_r2d2.common import config
-from previ_r2d2.model.pipeline.orchestrator import run_training
+from projet_hydro.common import config
+from projet_hydro.model.pipeline.orchestrator import run_training
 from tests.model.pipeline.test_orchestrator import make_synthetic_df
-from previ_r2d2.model.pipeline.predict_orchestrator import run_prediction, to_display_timezone
-from previ_r2d2.preprocessing.data_preparation.data_preparation_csv import write_data_preparation_csv
+from projet_hydro.model.pipeline.predict_orchestrator import run_prediction, to_display_timezone
+from projet_hydro.preprocessing.data_preparation.data_preparation_csv import write_data_preparation_csv
 
 
 def test_to_display_timezone_converts_utc_to_paris():
@@ -70,7 +70,7 @@ def test_run_prediction_h8_writes_prevision_json(tmp_path, monkeypatch):
         weights_dir=models_dir / "test_centrale" / "h8",
     )
 
-    import previ_r2d2.model.pipeline.predict_orchestrator as po
+    import projet_hydro.model.pipeline.predict_orchestrator as po
 
     now = df.index[-1]
 

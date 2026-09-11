@@ -14,8 +14,8 @@ _spec.loader.exec_module(train_script)
 
 
 def _patch_common(tmp_path, monkeypatch):
-    from previ_r2d2.common import config as cfg_mod
-    from previ_r2d2.common import dvc_markers
+    from projet_hydro.common import config as cfg_mod
+    from projet_hydro.common import dvc_markers
 
     monkeypatch.setattr(cfg_mod, "ROOT", tmp_path)
     monkeypatch.setattr(cfg_mod, "CENTRALES_DIR", tmp_path / "centrales")
@@ -39,9 +39,9 @@ def test_run_skips_ineligible_dossiers_and_reports_empty_digest(tmp_path, monkey
 
 
 def test_train_one_promotes_when_no_production_model_exists(tmp_path, monkeypatch):
-    from previ_r2d2.common import config as cfg_mod
-    from previ_r2d2.model.pipeline import promotion
-    from previ_r2d2.preprocessing.data_preparation.data_preparation_csv import write_data_preparation_csv
+    from projet_hydro.common import config as cfg_mod
+    from projet_hydro.model.pipeline import promotion
+    from projet_hydro.preprocessing.data_preparation.data_preparation_csv import write_data_preparation_csv
     from tests.model.pipeline.test_orchestrator import make_synthetic_df
 
     centrales_dir = tmp_path / "centrales"
@@ -50,7 +50,7 @@ def test_train_one_promotes_when_no_production_model_exists(tmp_path, monkeypatc
     monkeypatch.setattr(cfg_mod, "MODELS_DIR", tmp_path / "models")
     monkeypatch.setattr(promotion.subprocess, "run",
                         lambda *a, **k: SimpleNamespace(stdout="", stderr="", returncode=0))
-    from previ_r2d2.common import dvc_markers
+    from projet_hydro.common import dvc_markers
 
     monkeypatch.setattr(dvc_markers, "MARKERS_DIR", tmp_path / "logs" / "dvc_markers")
 
@@ -109,16 +109,16 @@ def test_train_one_does_not_promote_without_the_explicit_flag(tmp_path, monkeypa
     mais ne touche NI models/ NI git. La promotion (copie + dvc add + commit + tag)
     ne se déclenche qu'avec --promote ; les stages DVC train_new/train_monthly le
     passent explicitement pour garder le comportement de production."""
-    from previ_r2d2.common import config as cfg_mod
-    from previ_r2d2.model.pipeline import promotion
-    from previ_r2d2.preprocessing.data_preparation.data_preparation_csv import write_data_preparation_csv
+    from projet_hydro.common import config as cfg_mod
+    from projet_hydro.model.pipeline import promotion
+    from projet_hydro.preprocessing.data_preparation.data_preparation_csv import write_data_preparation_csv
     from tests.model.pipeline.test_orchestrator import make_synthetic_df
 
     centrales_dir = tmp_path / "centrales"
     monkeypatch.setattr(cfg_mod, "ROOT", tmp_path)
     monkeypatch.setattr(cfg_mod, "CENTRALES_DIR", centrales_dir)
     monkeypatch.setattr(cfg_mod, "MODELS_DIR", tmp_path / "models")
-    from previ_r2d2.common import dvc_markers
+    from projet_hydro.common import dvc_markers
 
     monkeypatch.setattr(dvc_markers, "MARKERS_DIR", tmp_path / "logs" / "dvc_markers")
 

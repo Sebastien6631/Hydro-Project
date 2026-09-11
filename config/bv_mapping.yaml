@@ -1,4 +1,4 @@
-# Correspondance dossier centrale (previ-R2-D2) -> nom de shapefile BV
+# Correspondance dossier centrale (projet_hydro) -> nom de shapefile BV
 # (centrales/REFERENCE/shapefiles/BV_<nom>.shp). Le nom du shapefile suit le
 # champ OneGate `amenagement`, pas le `dossier`. Vérifié par recoupement
 # géographique (le polygone contient adresse_lat/adresse_lng de la centrale).

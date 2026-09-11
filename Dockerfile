@@ -1,4 +1,4 @@
-# Image previ-R2-D2 — cœur ML + DVC + tests. Le code est bind-monté au
+# Image projet_hydro — cœur ML + DVC + tests. Le code est bind-monté au
 # runtime (docker-compose) ; ici on installe juste l'environnement.
 FROM python:3.11-slim
 

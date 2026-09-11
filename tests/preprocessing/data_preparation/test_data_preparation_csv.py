@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from previ_r2d2.preprocessing.data_preparation.data_preparation_csv import (
+from projet_hydro.preprocessing.data_preparation.data_preparation_csv import (
     merge_data_preparation,
     read_data_preparation_csv,
     write_data_preparation_csv,

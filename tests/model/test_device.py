@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import torch
 
-from previ_r2d2.model.device import ENV_VAR, resolve_device
+from projet_hydro.model.device import ENV_VAR, resolve_device
 
 
 def test_auto_detects_cpu_when_no_usable_gpu(monkeypatch):

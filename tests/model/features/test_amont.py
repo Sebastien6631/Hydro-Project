@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from previ_r2d2.model.features.amont import compute_amont_features
+from projet_hydro.model.features.amont import compute_amont_features
 
 
 def test_compute_amont_features_returns_unchanged_df_when_no_amont_columns():

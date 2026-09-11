@@ -19,10 +19,10 @@ import json
 import logging
 import sys
 
-from previ_r2d2.common.console import force_utf8
-from previ_r2d2.common import config
-from previ_r2d2.common.dvc_markers import write as write_marker
-from previ_r2d2.preprocessing.onboarding.validation import missing_fields
+from projet_hydro.common.console import force_utf8
+from projet_hydro.common import config
+from projet_hydro.common.dvc_markers import write as write_marker
+from projet_hydro.preprocessing.onboarding.validation import missing_fields
 
 logger = logging.getLogger("onboarding-check")
 

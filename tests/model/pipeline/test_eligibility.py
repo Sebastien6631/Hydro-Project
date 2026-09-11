@@ -6,8 +6,8 @@ from datetime import datetime, timedelta
 import pandas as pd
 import pytest
 
-from previ_r2d2.model.pipeline import eligibility
-from previ_r2d2.preprocessing.data_preparation.data_preparation_csv import write_data_preparation_csv
+from projet_hydro.model.pipeline import eligibility
+from projet_hydro.preprocessing.data_preparation.data_preparation_csv import write_data_preparation_csv
 
 
 def _write_history(nas_data_root, dossier, days):
@@ -17,7 +17,7 @@ def _write_history(nas_data_root, dossier, days):
 
 
 def test_history_span_days_zero_when_no_file(tmp_path, monkeypatch):
-    from previ_r2d2.common import config as cfg_mod
+    from projet_hydro.common import config as cfg_mod
 
     monkeypatch.setattr(cfg_mod, "NAS_DATA_ROOT", tmp_path)
 
@@ -25,7 +25,7 @@ def test_history_span_days_zero_when_no_file(tmp_path, monkeypatch):
 
 
 def test_history_span_days_matches_written_range(tmp_path, monkeypatch):
-    from previ_r2d2.common import config as cfg_mod
+    from projet_hydro.common import config as cfg_mod
 
     monkeypatch.setattr(cfg_mod, "NAS_DATA_ROOT", tmp_path)
     _write_history(tmp_path, "apas_G1_G4", 400)
@@ -34,7 +34,7 @@ def test_history_span_days_matches_written_range(tmp_path, monkeypatch):
 
 
 def test_not_eligible_below_min_history(tmp_path, monkeypatch):
-    from previ_r2d2.common import config as cfg_mod
+    from projet_hydro.common import config as cfg_mod
 
     monkeypatch.setattr(cfg_mod, "NAS_DATA_ROOT", tmp_path)
     monkeypatch.setattr(cfg_mod, "MODELS_DIR", tmp_path / "models")
@@ -44,7 +44,7 @@ def test_not_eligible_below_min_history(tmp_path, monkeypatch):
 
 
 def test_eligible_for_first_training_at_12_months_no_model_yet(tmp_path, monkeypatch):
-    from previ_r2d2.common import config as cfg_mod
+    from projet_hydro.common import config as cfg_mod
 
     monkeypatch.setattr(cfg_mod, "NAS_DATA_ROOT", tmp_path)
     monkeypatch.setattr(cfg_mod, "MODELS_DIR", tmp_path / "models")
@@ -54,8 +54,8 @@ def test_eligible_for_first_training_at_12_months_no_model_yet(tmp_path, monkeyp
 
 
 def test_not_eligible_when_model_exists_and_retrained_recently(tmp_path, monkeypatch):
-    from previ_r2d2.common import config as cfg_mod
-    from previ_r2d2.common import dvc_markers
+    from projet_hydro.common import config as cfg_mod
+    from projet_hydro.common import dvc_markers
 
     monkeypatch.setattr(cfg_mod, "NAS_DATA_ROOT", tmp_path)
     monkeypatch.setattr(cfg_mod, "MODELS_DIR", tmp_path / "models")
@@ -72,8 +72,8 @@ def test_not_eligible_when_model_exists_and_retrained_recently(tmp_path, monkeyp
 
 
 def test_eligible_when_model_exists_but_retrain_overdue(tmp_path, monkeypatch):
-    from previ_r2d2.common import config as cfg_mod
-    from previ_r2d2.common import dvc_markers
+    from projet_hydro.common import config as cfg_mod
+    from projet_hydro.common import dvc_markers
 
     monkeypatch.setattr(cfg_mod, "NAS_DATA_ROOT", tmp_path)
     monkeypatch.setattr(cfg_mod, "MODELS_DIR", tmp_path / "models")

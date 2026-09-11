@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from previ_r2d2.tracking import mlflow_log
+from projet_hydro.tracking import mlflow_log
 
 
 RESULTS = {
@@ -105,5 +105,5 @@ def test_registered_name_is_stable_per_centrale_and_horizon():
     """Le nom est la clé du registry : s'il variait d'un entraînement à
     l'autre, chaque promotion créerait un modèle neuf en v1 au lieu
     d'incrémenter les versions d'un même modèle."""
-    assert mlflow_log.registered_name("apas_G1_G4", 8) == "previ-r2d2-apas_G1_G4-h8"
-    assert mlflow_log.registered_name("touzac_g2_G2", 48) == "previ-r2d2-touzac_g2_G2-h48"
+    assert mlflow_log.registered_name("apas_G1_G4", 8) == "projet_hydro-apas_G1_G4-h8"
+    assert mlflow_log.registered_name("touzac_g2_G2", 48) == "projet_hydro-touzac_g2_G2-h48"

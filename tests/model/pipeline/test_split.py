@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from previ_r2d2.model.pipeline.split import train_val_test_indices
+from projet_hydro.model.pipeline.split import train_val_test_indices
 
 
 def _sizes(slices):

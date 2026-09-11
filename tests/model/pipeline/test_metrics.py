@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 from sklearn.linear_model import Ridge
 
-from previ_r2d2.model.pipeline.metrics import kge_per_step, kge_by_regime, kge_by_season, log_interpretability
+from projet_hydro.model.pipeline.metrics import kge_per_step, kge_by_regime, kge_by_season, log_interpretability
 
 
 def test_kge_per_step_matches_hand_computed_values_per_horizon():
@@ -108,7 +108,7 @@ def test_log_interpretability_omits_ridge_coef_when_meta_has_no_coef_attribute()
 
 
 def test_log_interpretability_skill_vs_persistence_matches_independent_recomputation():
-    from previ_r2d2.model.architectures.stacking import kge_components
+    from projet_hydro.model.architectures.stacking import kge_components
 
     meta, y_true_m3s, pl_v, pt_v, stk_v, q_now_m3s, horizon, meteo_cols = make_interpretability_fixture()
 

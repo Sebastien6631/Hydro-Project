@@ -1,9 +1,9 @@
 ---
 name: hydro-projet
 description: |
-  Architecture, pipeline DVC et pièges connus de previ-R2-D2 — VERSION PROJET
+  Architecture, pipeline DVC et pièges connus de projet_hydro — VERSION PROJET
   DE COURS MLOps (dépôt DagsHub, 2 centrales, hors réseau de l'entreprise).
-  Utilise ce skill quand l'utilisateur parle de : previ-R2-D2, ce projet de
+  Utilise ce skill quand l'utilisateur parle de : projet_hydro, ce projet de
   cours, apas_G1_G4/touzac_g2_G2, dvc.yaml, source=live|frozen,
   DagsHub, promote_model, onboarding BV, entraînement/prédiction hybride
   LightGBM+BiLSTM+Stacking, ou de tout script sous cron/scripts/.
@@ -13,7 +13,7 @@ description: |
 
 ## Ce que c'est
 
-Ce dépôt est une version **réduite et publique** du pipeline previ-R2-D2
+Ce dépôt est une version **réduite et publique** du pipeline projet_hydro
 (prévision débit → puissance de centrales hydroélectriques, initialement un
 projet de production chez Barthe EnR). Simplifié le 2026-07-23 pour un
 projet de cours MLOps, réalisé hors du réseau de l'entreprise — voir
@@ -54,7 +54,7 @@ et des fichiers de config versionnés (`config-general.json`,
 `centrales_calibration.json`, `puissance_mapping.yaml`, `bv_mapping.yaml`,
 `shapefiles/`).
 
-## Architecture (package `previ_r2d2`)
+## Architecture (package `projet_hydro`)
 
 ```
 Hydro-Project/
@@ -65,7 +65,7 @@ Hydro-Project/
 ├── models/                        # source de vérité modèles en PRODUCTION, versionné DVC+git
 │                                  #   <dossier>/h<horizon>/{version.json, meta_config.json, ...}
 ├── weights/hybrid{,_candidate}/   # zone de travail manuelle / candidat en cours d'évaluation
-├── src/previ_r2d2/
+├── src/projet_hydro/
 │   ├── common/                  # config.py, dvc_markers.py, onegate.py/mailer.py/
 │   │                            #   daily_report.py/mlflow_tracker.py SUPPRIMÉS
 │   ├── preprocessing/
@@ -232,7 +232,7 @@ finale de la simplification).
 
 ## Chantier meta-learner + contexte BiLSTM (2026-09-09) — PORTÉ PUIS REPLIÉ
 
-Deux fixes du skill d'origine (`previ-r2d2`) ont été portés ici, mesurés, puis
+Deux fixes du skill d'origine (`projet_hydro`) ont été portés ici, mesurés, puis
 **retirés parce qu'ils dégradaient ou n'apportaient rien**. Ne pas les re-porter
 sans relire cette section.
 
@@ -318,7 +318,7 @@ d'anciens `results.json` qui ne l'était pas.
 
 ## GPU (ajouté 2026-09-09)
 
-`previ_r2d2/model/device.py::resolve_device()` est le **seul** endroit qui
+`projet_hydro/model/device.py::resolve_device()` est le **seul** endroit qui
 choisit le device — entraînement (`fit_oof`) et prédiction
 (`load_trained_models`) l'appellent tous les deux, pour qu'ils ne puissent pas
 diverger. Détection auto, surchargeable par `PREVI_DEVICE=cpu|cuda` (repli sur

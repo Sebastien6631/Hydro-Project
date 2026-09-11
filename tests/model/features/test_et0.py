@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from previ_r2d2.model.features.et0 import compute_et0
+from projet_hydro.model.features.et0 import compute_et0
 
 
 def test_compute_et0_matches_hand_computed_value():

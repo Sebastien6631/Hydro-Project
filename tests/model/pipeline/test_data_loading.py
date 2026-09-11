@@ -4,9 +4,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from previ_r2d2.common import config
-from previ_r2d2.preprocessing.data_preparation.data_preparation_csv import write_data_preparation_csv
-from previ_r2d2.model.pipeline.data_loading import load_df, split_train_test
+from projet_hydro.common import config
+from projet_hydro.preprocessing.data_preparation.data_preparation_csv import write_data_preparation_csv
+from projet_hydro.model.pipeline.data_loading import load_df, split_train_test
 
 
 def make_hourly_df(n=48):

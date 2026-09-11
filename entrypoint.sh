@@ -8,9 +8,9 @@ if [ -n "$DAGSHUB_TOKEN" ] && [ -f .dvc/config ]; then
 fi
 
 git config --global --get user.email >/dev/null 2>&1 || \
-  git config --global user.email "${GIT_AUTHOR_EMAIL:-previ-r2d2@localhost}"
+  git config --global user.email "${GIT_AUTHOR_EMAIL:-projet_hydro@localhost}"
 git config --global --get user.name  >/dev/null 2>&1 || \
-  git config --global user.name  "${GIT_AUTHOR_NAME:-previ-r2d2}"
+  git config --global user.name  "${GIT_AUTHOR_NAME:-projet_hydro}"
 git config --global --add safe.directory /app 2>/dev/null || true
 
 exec "$@"

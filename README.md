@@ -1,4 +1,4 @@
-# previ-R2-D2 (pipeline IA)
+# projet_hydro (pipeline IA)
 
 > **Version projet de cours MLOps** — ce dépôt est une version réduite de
 > previ-R2-D2 (pipeline de production chez Barthe EnR), adaptée pour un
@@ -31,14 +31,14 @@ modèle hybride (LightGBM + BiLSTM + stacking), orchestrés via DVC.
 ## Architecture
 
 ```
-previ-R2-D2/
+projet_hydro/
 ├── pyproject.toml               # package installable (pip install -e .)
 ├── requirements.txt
 ├── run.py                        # CLI entraînement/prédiction du modèle hybride (--train ...)
 ├── config/
 │   ├── centrales/                # réservé (vide, .gitkeep) -- inutilisé dans cette version
 │   └── puissance_mapping.yaml   # dossier -> nom de dossier hydrospot_stream (repli explicite, cf. ci-dessous)
-├── src/previ_r2d2/
+├── src/projet_hydro/
 │   ├── common/                  # config, secret_config (3 secrets restants), dvc_markers
 │   ├── preprocessing/
 │   │   ├── onboarding/          # validation.py -- complétude config-raccordement.json avant bv
@@ -78,7 +78,7 @@ previ-R2-D2/
 │   ├── preprocessing/dvc.yaml     # debit -> onboarding_check -> bv -> data_preparation (manuel)
 │   └── postprocessing/dvc.yaml    # predict_archive (horaire)
 ├── outputs/                       # sorties de prédiction/entraînement (gitignored)
-├── tests/                         # miroir de src/previ_r2d2/
+├── tests/                         # miroir de src/projet_hydro/
 ├── centrales/                     # données des 2 centrales -- <dossier>/ versionné via DVC
 │   │                              #   (remote local ../remote_dvc, cf. <dossier>.dvc à la racine)
 │   ├── REFERENCE/                 # config-general.json, versionné via DVC ;
@@ -144,7 +144,7 @@ dvc push
 
 ## Configuration
 
-Les secrets vivent dans `src/previ_r2d2/common/secret_config.py` (Python
+Les secrets vivent dans `src/projet_hydro/common/secret_config.py` (Python
 local, **non versionné**) :
 
 ```python
@@ -204,7 +204,7 @@ debit ──> onboarding_check ──> bv
 `debit`, `onboarding_check` et `bv` déclarent chacun un `outs:` minimal
 (`logs/dvc_markers/<stage>.json`, `cache: false`) — pas une vraie sortie mise
 en cache, juste un marqueur horodaté écrit en une ligne
-(`previ_r2d2.common.dvc_markers.write(...)`) à la fin de chaque script, pour
+(`projet_hydro.common.dvc_markers.write(...)`) à la fin de chaque script, pour
 donner une vraie arête DAG entre stages (sans ça, DVC n'a rien à quoi
 accrocher une dépendance). `debit` et `onboarding_check` gardent en plus
 `always_changed: true` (comme `data_preparation` plus bas) — leurs
@@ -376,7 +376,7 @@ prédiction 100% reproductible, par exemple en test.
 python cron/scripts/predict-archive.py   # toutes les centrales avec un modèle en prod (pas de --dossier)
 ```
 
-### `src/previ_r2d2/model/` — portage du modèle hybride meta
+### `src/projet_hydro/model/` — portage du modèle hybride meta
 
 Fonctions pures (pas de classe à état, sauf `BiLSTMHydro` qui est un
 `nn.Module` PyTorch — contrainte du framework, pas un choix indépendant).
@@ -425,7 +425,7 @@ architectures (Stacking, prédiction test set, plots) → `model/pipeline/`.
   vs production sur le même holdout, `dvc add`+`git tag`, sûr face à un échec
   partiel). Cf. section `train.py` ci-dessus pour le détail opérationnel.
 
-Voir le skill `previ-r2d2` pour le détail pièce par pièce et le skill
+Voir le skill `projet_hydro` pour le détail pièce par pièce et le skill
 `hybrid-meta-ops` pour l'architecture du modèle hybride.
 
 ```bash
@@ -434,7 +434,7 @@ Voir le skill `previ-r2d2` pour le détail pièce par pièce et le skill
 
 ### `run.py` — entraînement/prédiction MANUELS (expés, pas le chemin automatisé)
 
-CLI mince (`src/previ_r2d2/cli.py`) qui appelle `run_training`/`run_prediction`
+CLI mince (`src/projet_hydro/cli.py`) qui appelle `run_training`/`run_prediction`
 pour un dossier+horizon donné, ou pour toutes les centrales × 3 horizons
 (8h/48h/72h). **Le chemin opérationnel automatisé passe par
 `cron/scripts/train.py`/`predict-archive.py`** (cf. sections dédiées
@@ -490,7 +490,7 @@ docker compose run --rm app bash                     # shell interactif
 ```
 
 L'image contient Python 3.11, PyTorch CPU, LightGBM, DVC et le package
-`previ_r2d2`.
+`projet_hydro`.
 
 Le code est **bind-monté** : une modif locale est vue immédiatement dans le
 conteneur, pas de rebuild sauf changement de dépendances.
@@ -565,7 +565,7 @@ est écrit dans `meta_config.json`, et le commit git est un tag du run.
 `train.py --promote` promeut un candidat qui bat la production, puis
 `promote_model` copie les artefacts, les versionne (`dvc add`), pose un commit
 et un tag git — et enregistre la version au registry MLflow sous le nom
-`previ-r2d2-<centrale>-h<horizon>`, avec l'alias `@production`.
+`projet_hydro-<centrale>-h<horizon>`, avec l'alias `@production`.
 
 Les deux versions se répondent : `version.json` porte le `mlflow_run_id`, et
 la version du registry porte le tag git en tag MLflow.

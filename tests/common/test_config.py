@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from previ_r2d2.common import config
+from projet_hydro.common import config
 
 
 def test_centrales_dir_is_root_slash_centrales():

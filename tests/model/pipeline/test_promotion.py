@@ -7,9 +7,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from previ_r2d2.model.pipeline import promotion
-from previ_r2d2.model.pipeline.orchestrator import run_training
-from previ_r2d2.preprocessing.data_preparation.data_preparation_csv import write_data_preparation_csv
+from projet_hydro.model.pipeline import promotion
+from projet_hydro.model.pipeline.orchestrator import run_training
+from projet_hydro.preprocessing.data_preparation.data_preparation_csv import write_data_preparation_csv
 from tests.model.pipeline.test_orchestrator import make_synthetic_df
 
 
@@ -20,7 +20,7 @@ def _fake_run_clean_tree(*args, **kwargs):
 
 
 def _train(tmp_path, monkeypatch, weights_dir):
-    from previ_r2d2.common import config as cfg_mod
+    from projet_hydro.common import config as cfg_mod
 
     centrales_dir = tmp_path / "centrales"
     monkeypatch.setattr(cfg_mod, "CENTRALES_DIR", centrales_dir)
@@ -44,7 +44,7 @@ def _train(tmp_path, monkeypatch, weights_dir):
 
 
 def test_evaluate_returns_first_training_when_no_production_model(tmp_path, monkeypatch):
-    from previ_r2d2.common import config as cfg_mod
+    from projet_hydro.common import config as cfg_mod
 
     monkeypatch.setattr(cfg_mod, "MODELS_DIR", tmp_path / "models")
     candidate_results = {"kge_stacking": 0.5, "_eval_context": {}}
@@ -55,7 +55,7 @@ def test_evaluate_returns_first_training_when_no_production_model(tmp_path, monk
 
 
 def test_promote_model_copies_files_and_writes_version(tmp_path, monkeypatch):
-    from previ_r2d2.common import config as cfg_mod
+    from projet_hydro.common import config as cfg_mod
 
     monkeypatch.setattr(cfg_mod, "MODELS_DIR", tmp_path / "models")
     monkeypatch.setattr(promotion.subprocess, "run", _fake_run_clean_tree)
@@ -75,7 +75,7 @@ def test_promote_model_copies_files_and_writes_version(tmp_path, monkeypatch):
 
 
 def test_promote_model_increments_version(tmp_path, monkeypatch):
-    from previ_r2d2.common import config as cfg_mod
+    from projet_hydro.common import config as cfg_mod
 
     monkeypatch.setattr(cfg_mod, "MODELS_DIR", tmp_path / "models")
     monkeypatch.setattr(promotion.subprocess, "run", _fake_run_clean_tree)
@@ -104,7 +104,7 @@ def test_evaluate_candidate_vs_production_end_to_end(tmp_path, monkeypatch):
 
 
 def test_promote_model_restores_previous_version_on_failure(tmp_path, monkeypatch):
-    from previ_r2d2.common import config as cfg_mod
+    from projet_hydro.common import config as cfg_mod
 
     monkeypatch.setattr(cfg_mod, "MODELS_DIR", tmp_path / "models")
     monkeypatch.setattr(promotion.subprocess, "run", _fake_run_clean_tree)
@@ -143,7 +143,7 @@ def test_promote_model_refuses_when_the_git_tree_is_dirty(tmp_path, monkeypatch)
     """promote_model committe : avec un arbre sale, son commit embarquerait des
     modifications sans rapport (piège rencontré en session -- un entraînement de
     plusieurs heures finissant dans un commit fourre-tout)."""
-    from previ_r2d2.common import config as cfg_mod
+    from projet_hydro.common import config as cfg_mod
 
     monkeypatch.setattr(cfg_mod, "MODELS_DIR", tmp_path / "models")
     monkeypatch.setattr(
@@ -163,7 +163,7 @@ def test_promote_model_refuses_when_the_git_tree_is_dirty(tmp_path, monkeypatch)
 def test_promote_model_calls_dvc_through_the_current_interpreter(tmp_path, monkeypatch):
     """Sur Windows, dvc.exe vit dans le Scripts/ de l'env conda : un `dvc` nu
     lève FileNotFoundError (WinError 2) dès que l'env n'est pas activé."""
-    from previ_r2d2.common import config as cfg_mod
+    from projet_hydro.common import config as cfg_mod
 
     monkeypatch.setattr(cfg_mod, "MODELS_DIR", tmp_path / "models")
     appels = []

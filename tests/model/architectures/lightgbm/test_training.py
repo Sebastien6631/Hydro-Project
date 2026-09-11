@@ -8,9 +8,9 @@ import numpy as np
 import pandas as pd
 import optuna
 
-from previ_r2d2.model.architectures.lightgbm import training
-from previ_r2d2.model.pipeline.split import train_val_test_indices
-from previ_r2d2.model.architectures.lightgbm.training import (
+from projet_hydro.model.architectures.lightgbm import training
+from projet_hydro.model.pipeline.split import train_val_test_indices
+from projet_hydro.model.architectures.lightgbm.training import (
     OOF_LGBM_PARAMS,
     select_top_features,
     objective_reg,

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from previ_r2d2.model.pipeline.bv_config import (
+from projet_hydro.model.pipeline.bv_config import (
     bv_params_from_bv_json,
     transit_amont_from_bv_json,
     transit_centrale_from_bv_json,

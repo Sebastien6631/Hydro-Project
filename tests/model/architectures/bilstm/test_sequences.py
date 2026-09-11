@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from previ_r2d2.model.architectures.bilstm.sequences import build_last_window, build_sequences, get_seq_cols
+from projet_hydro.model.architectures.bilstm.sequences import build_last_window, build_sequences, get_seq_cols
 
 
 def make_fixture(n=150):

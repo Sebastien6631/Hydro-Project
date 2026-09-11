@@ -2,13 +2,13 @@
 name: hydro-mlops
 description: |
   Cadrage, roadmap et SUIVI D'AVANCEMENT du projet MLOps Hydro-Project
-  (previ-R2-D2), à deux — Xavier + Sébastien. Soutenance début novembre 2026,
+  (projet_hydro), à deux — Xavier + Sébastien. Soutenance début novembre 2026,
   points hebdo. Utilise ce skill quand quelqu'un demande : où on en est,
   quoi faire ensuite, qui fait quoi, le plan / la roadmap, l'état
   d'avancement, les décisions de cadrage, les deadlines, la correspondance
   avec le cours DataScientest / la grille du jury, le workflow d'équipe
   (branches, dépôts GitHub + DagsHub), ou pour cocher une tâche faite dans le
-  tableau de suivi. Le skill technique du code (architecture previ-R2-D2,
+  tableau de suivi. Le skill technique du code (architecture projet_hydro,
   pipeline DVC, pièges connus) est `hydro-projet`, séparé.
 ---
 
@@ -16,7 +16,7 @@ description: |
 
 ## 1. Objectif & périmètre
 
-Construire une **plateforme MLOps de bout en bout** autour de **previ-R2-D2**
+Construire une **plateforme MLOps de bout en bout** autour de **projet_hydro**
 (prévision de débit → puissance de centrales hydroélectriques ; modèle
 hybride **LightGBM + BiLSTM + stacking** ; métrique **KGE** — Kling-Gupta
 Efficiency), comme projet fil rouge de la formation DataScientest, spécialité
@@ -187,8 +187,8 @@ consulter, pas à copier tel quel).
 
 | Élément | État | Détail |
 |---|---|---|
-| Cœur ML (LightGBM + BiLSTM + stacking) | ✅ | `src/previ_r2d2/model/` |
-| Preprocessing (débit, BV, data_preparation, météo) | ✅ | `src/previ_r2d2/preprocessing/` |
+| Cœur ML (LightGBM + BiLSTM + stacking) | ✅ | `src/projet_hydro/model/` |
+| Preprocessing (débit, BV, data_preparation, météo) | ✅ | `src/projet_hydro/preprocessing/` |
 | Pipeline DVC complet (3 + 1 + 1 stages) | ✅ | `debit → onboarding_check → data_preparation` puis `train` puis `predict_archive` |
 | Reproductibilité (graines fixées) | ✅ | `model/seeding.py` |
 | Support GPU + early stopping | ✅ | `model/device.py` (GPU = local seulement) |
@@ -279,7 +279,7 @@ déjà résolu là-dedans, et alors **re-porter au plus simple**, pas copier.
 
 ## 11. Références
 
-- **`hydro-projet`** (skill) — architecture technique de previ-R2-D2,
+- **`hydro-projet`** (skill) — architecture technique de projet_hydro,
   pipeline DVC, pièges connus, script par script.
 - **`README.md`** — installation (env conda `projet-mlops`), pipeline DVC.
 - **Archive formation** : `~/Documents/DataScientest-Formation/` — cours par

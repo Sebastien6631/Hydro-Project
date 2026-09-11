@@ -15,13 +15,13 @@ import sys
 
 import pandas as pd
 
-from previ_r2d2.common.console import force_utf8
-from previ_r2d2.common import config
-from previ_r2d2.common.dvc_markers import write as write_marker
-from previ_r2d2.model.pipeline.eligibility import has_production_model
-from previ_r2d2.model.pipeline.orchestrator import HORIZON_CFG
-from previ_r2d2.model.pipeline.predict_orchestrator import run_prediction
-from previ_r2d2.postprocessing.archive import archive_previous_json
+from projet_hydro.common.console import force_utf8
+from projet_hydro.common import config
+from projet_hydro.common.dvc_markers import write as write_marker
+from projet_hydro.model.pipeline.eligibility import has_production_model
+from projet_hydro.model.pipeline.orchestrator import HORIZON_CFG
+from projet_hydro.model.pipeline.predict_orchestrator import run_prediction
+from projet_hydro.postprocessing.archive import archive_previous_json
 
 logger = logging.getLogger("predict-archive")
 

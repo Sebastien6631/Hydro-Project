@@ -3,7 +3,7 @@ requires = ["setuptools>=68.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "previ_r2d2"
+name = "projet_hydro"
 version = "0.1.0"
 description = "Pipeline IA — reprise automatisée de Previ_v2"
 requires-python = ">=3.11"

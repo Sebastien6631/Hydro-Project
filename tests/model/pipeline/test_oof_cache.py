@@ -4,8 +4,8 @@ import numpy as np
 import pandas as pd
 import torch
 
-from previ_r2d2.model.architectures.bilstm.model import BiLSTMHydro
-from previ_r2d2.model.pipeline.oof_cache import (
+from projet_hydro.model.architectures.bilstm.model import BiLSTMHydro
+from projet_hydro.model.pipeline.oof_cache import (
     load_or_compute_oof_lgbm,
     load_or_compute_lgbm_final,
     load_or_compute_oof_lstm,

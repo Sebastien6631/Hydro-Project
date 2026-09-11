@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from previ_r2d2.model.architectures.stacking import (
+from projet_hydro.model.architectures.stacking import (
     slice_lgbm_multistep,
     meteo_cols,
     kge_components,

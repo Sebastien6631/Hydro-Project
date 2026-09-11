@@ -18,12 +18,12 @@ def _write_general(centrales_dir, records):
 
 
 def test_run_skips_already_onboarded_dossier(tmp_path, monkeypatch, caplog):
-    from previ_r2d2.common import config as cfg_mod
+    from projet_hydro.common import config as cfg_mod
 
     monkeypatch.setattr(cfg_mod, "ROOT", tmp_path)
     monkeypatch.setattr(cfg_mod, "CENTRALES_DIR", tmp_path / "centrales")
     monkeypatch.setattr(cfg_mod, "REFERENCE_DIR", tmp_path / "centrales" / "REFERENCE")
-    from previ_r2d2.common import dvc_markers
+    from projet_hydro.common import dvc_markers
 
     monkeypatch.setattr(dvc_markers, "MARKERS_DIR", tmp_path / "logs" / "dvc_markers")
 
@@ -40,12 +40,12 @@ def test_run_skips_already_onboarded_dossier(tmp_path, monkeypatch, caplog):
 
 
 def test_run_reports_missing_fields_for_new_dossier(tmp_path, monkeypatch, caplog):
-    from previ_r2d2.common import config as cfg_mod
+    from projet_hydro.common import config as cfg_mod
 
     monkeypatch.setattr(cfg_mod, "ROOT", tmp_path)
     monkeypatch.setattr(cfg_mod, "CENTRALES_DIR", tmp_path / "centrales")
     monkeypatch.setattr(cfg_mod, "REFERENCE_DIR", tmp_path / "centrales" / "REFERENCE")
-    from previ_r2d2.common import dvc_markers
+    from projet_hydro.common import dvc_markers
 
     monkeypatch.setattr(dvc_markers, "MARKERS_DIR", tmp_path / "logs" / "dvc_markers")
 
@@ -63,12 +63,12 @@ def test_run_continues_after_one_record_raises(tmp_path, monkeypatch, caplog):
     """Un enregistrement qui fait planter missing_fields (config corrompue,
     yaml illisible...) ne doit jamais empêcher la validation des autres
     raccordements -- même isolation par enregistrement que train.py::run()."""
-    from previ_r2d2.common import config as cfg_mod
+    from projet_hydro.common import config as cfg_mod
 
     monkeypatch.setattr(cfg_mod, "ROOT", tmp_path)
     monkeypatch.setattr(cfg_mod, "CENTRALES_DIR", tmp_path / "centrales")
     monkeypatch.setattr(cfg_mod, "REFERENCE_DIR", tmp_path / "centrales" / "REFERENCE")
-    from previ_r2d2.common import dvc_markers
+    from projet_hydro.common import dvc_markers
 
     monkeypatch.setattr(dvc_markers, "MARKERS_DIR", tmp_path / "logs" / "dvc_markers")
 
