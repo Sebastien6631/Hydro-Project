@@ -543,6 +543,11 @@ une erreur de contrat est détectée. Rapport JSON par centrale sous `logs/valid
 
 ## Suivi d'expériences (MLflow) — Phase 2
 
+> **État : fait** (tâches 2.1 et 2.2, branche `phase2/mlflow-tracking`).
+> Validé le 2026-09-11 sur un entraînement réel : run `touzac_g2_G2-h8` loggé
+> avec ses métriques et artefacts, KGE stacking 0,824. Le Model Registry se
+> remplit au premier `--promote` qui aboutit.
+
 Chaque entraînement enregistre ses paramètres, ses métriques KGE et ses
 artefacts dans MLflow, pour comparer deux entraînements autrement qu'en
 diffant deux `results.json` à la main.
