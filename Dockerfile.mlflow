@@ -1,0 +1,5 @@
+# Étend l'image officielle de Sébastien avec boto3 -- --serve-artifacts a
+# besoin d'un client S3 côté serveur pour écrire dans MinIO. Le PIN DOIT
+# suivre celui de pyproject.toml (mlflow==3.16.0) et de ce Dockerfile.
+FROM ghcr.io/mlflow/mlflow:v3.16.0
+RUN pip install --no-cache-dir boto3==1.35.49
