@@ -232,8 +232,8 @@ consulter, pas à copier tel quel).
 |---|---|---|---|---|
 | 3.1 | **Airflow** — orchestration bout-en-bout | sg | 🔄 | démarré le 11/09, DAGs `BashOperator` → `cron/scripts/` ; DAG entraînement auto |
 | 3.2 | **Pipeline CI** (`ruff` + `pytest` sur PR) | xh | ✅ | `phase3/ci` → PR vers `dev`. Job `lint-test` GitHub Actions, Python natif (pas Docker), `ruff` E/F seulement (0 erreur, 3 fixées), `pytest -q` sur fixtures synthétiques (aucun secret requis) → 313 passed. |
-| 3.3 | Sécuriser + optimiser l'API | libre | ⬜ 🧪 | auth, logs, timeouts, pas de stack trace |
-| 3.4 | **BentoML** — service de serving | xh | 🔄 | `phase3/bentoml` → PR vers `dev`, **codé la nuit du 14/09 en autonome, PAS mergé — à relire**. Extrait `predict_service.py` (logique de prévision partagée FastAPI+BentoML, ponytail : zéro duplication). `bento_service.py` (`@bentoml.service`), `Dockerfile.bento` séparé (bentoml pas dans l'image app/CI), port 3000, hors nginx (démo de compétence, pas un 2ᵉ chemin de prod). |
+| 3.3 | **Sécuriser + optimiser l'API** | xh | 🔄 | `phase3/api-security` → PR #12 vers `dev`, **codé la nuit du 14/09 en autonome, PAS mergé — à relire au réveil**. Clé API optionnelle (`config.API_KEY`, en-tête `X-API-Key`, vide par défaut = tests/CI inchangés), logs JSON par requête (`request_id`), timeouts+rate-limit côté nginx (10 req/s/IP, 30s read). 6 tests. |
+| 3.4 | **BentoML** — service de serving | xh | 🔄 | `phase3/bentoml` → PR #14 vers `dev`, **codé la nuit du 14/09 en autonome, PAS mergé — à relire**. Extrait `predict_service.py` (logique de prévision partagée FastAPI+BentoML, ponytail : zéro duplication). `bento_service.py` (`@bentoml.service`), `Dockerfile.bento` séparé (bentoml pas dans l'image app/CI), port 3000, hors nginx (démo de compétence, pas un 2ᵉ chemin de prod). **Merge fait par avance avec #12** (les deux touchaient `api.py`) → `phase3/bentoml` inclut déjà #12 et se merge sans conflit. **→ 318 passed après merge des deux, `ruff` clean, vérifié en vrai (curl réel, pas que mocké).**
 | 3.5 | Scalabilité Docker / Kubernetes (Helm) | libre | ⬜ 🧪 | Deployment + Service + Ingress + HPA |
 
 ### Phase 4
