@@ -222,9 +222,9 @@ consulter, pas à copier tel quel).
 | 2.1 | Suivi d'expériences MLflow | sg | ✅ | `phase2/mlflow-tracking` → PR #7 vers `dev`. `tracking/mlflow_log.py` : run par entraînement (params + fenêtre d'évaluation, KGE global/régime/saison/pas, artefacts, tags git+seed). **Inerte sans `MLFLOW_TRACKING_URI`** (tests/CI sans serveur, `tests/conftest.py` l'impose), jamais bloquant si le serveur tombe. `.env` chargé par `config.py`, une seule valeur hôte/conteneur via `${VAR:+…}` compose. Validé le 2026-09-11 : run `touzac_g2_G2-h8` loggé, KGE 0.824. |
 | 2.2 | Model Registry + promotion (alias `@production`) | sg | ✅ | même branche. `register_production_model` appelé par `promote_model` **après** commit+tag git, hors rollback. Nom `projet_hydro-<centrale>-h8`, tag MLflow = tag git, `version.json` porte le `run_id`. MLflow indexe, DVC porte les octets. |
 | 2.3 | Versioning données + modèles | — | ✅ | DVC + tags git |
-| 2.4 | Découpage microservices | libre | ⬜ | services `api` / `mlflow` / `db` / `minio` dans compose |
-| 2.5 | NGINX reverse proxy | libre | ⬜ 🧪 | point d'entrée unique |
-| 2.6 | MinIO (artefacts MLflow) | xh | 🔄 | serveur déjà en `--serve-artifacts` : seul le service `mlflow` du compose change (`--artifacts-destination=s3://…` + creds côté serveur), zéro ligne dans `mlflow_log.py`. Basculer avant les premiers vrais entraînements (les runs déjà loggés garderaient leurs artefacts dans l'ancien volume). |
+| 2.4 | Découpage microservices | xh | ✅ | `phase2/minio-nginx` → PR vers `dev`. services `app` / `api` / `mlflow` / `minio` / `minio-setup` / `nginx` dans le compose, réseau interne. |
+| 2.5 | **NGINX reverse proxy** | xh | ✅ | même branche. `api`+`mlflow` n'exposent plus de port directement, `nginx` forwarde en TCP passthrough (`8000→api`, `5000→mlflow`, ports externes identiques — rien ne change pour `.env`/le client). `resolver 127.0.0.11` + variable `$upstream` = résolution DNS paresseuse (démarre même si api/mlflow pas encore prêts). Console MinIO **hors** nginx (SPA à sous-chemin fragile, pas justifié pour un outil d'admin interne). |
+| 2.6 | MinIO (artefacts MLflow) | xh | ✅ | même branche. `Dockerfile.mlflow` = image officielle de sg + `boto3` (client S3, indispensable côté serveur pour `--artifacts-destination=s3://mlflow-artifacts`). `minio` + `minio-setup` (créé le bucket). Zéro ligne changée dans `mlflow_log.py`. |
 
 ### Phase 3
 

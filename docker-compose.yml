@@ -1,7 +1,10 @@
 name: projet_hydro
 
 # Le code est bind-monté, les données arrivent par `dvc pull`.
-# Les phases suivantes (MLflow, Airflow...) ajouteront leurs services ici.
+# api + mlflow n'exposent plus de port directement : nginx est le seul point
+# d'entrée réseau (mêmes ports externes qu'avant -- rien ne change pour
+# l'utilisateur/`.env`). MinIO reste direct (cf. note dans le README) --
+# c'est un outil d'admin interne, pas un service applicatif.
 
 x-env: &env
   DAGSHUB_USER: ${DAGSHUB_USER:-}
@@ -32,8 +35,7 @@ services:
     environment: *env
     volumes:
       - .:/app
-    ports:
-      - "8000:8000"
+    # Pas de `ports:` -- accessible via nginx (localhost:8000), même URL qu'avant.
     command:
       - uvicorn
       - projet_hydro.serving.api:app
@@ -42,8 +44,7 @@ services:
 
   # Serveur de suivi d'expériences. Backend SQLite : le Model Registry exige
   # une base, SQLite suffit largement pour 2 centrales x 1 horizon et se
-  # sauvegarde en copiant un fichier. MinIO remplacera le stockage d'artefacts
-  # en tache 2.6.
+  # sauvegarde en copiant un fichier.
   #
   # --serve-artifacts est indispensable ici : les entrainements tournent sur
   # l'HOTE (env conda) et le serveur dans le conteneur. Sans lui, le client
@@ -52,12 +53,20 @@ services:
   # et l'onglet Artifacts resterait vide sans erreur. Avec, le client recoit une
   # URI mlflow-artifacts:/ et televerse a travers le serveur.
   mlflow:
-    image: ghcr.io/mlflow/mlflow:v3.16.0  # DOIT suivre le pin mlflow de pyproject.toml
+    build:
+      context: .
+      dockerfile: Dockerfile.mlflow  # image officielle + boto3 (client S3 vers MinIO)
     working_dir: /mlflow
-    ports:
-      - "5000:5000"
+    # Pas de `ports:` -- accessible via nginx (localhost:5000), même URL qu'avant.
+    environment:
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin123}
     volumes:
       - mlflow-data:/mlflow
+    depends_on:
+      minio-setup:
+        condition: service_completed_successfully
     command:
       - mlflow
       - server
@@ -65,7 +74,51 @@ services:
       - --port=5000
       - --backend-store-uri=sqlite:////mlflow/mlflow.db
       - --serve-artifacts
-      - --artifacts-destination=/mlflow/artifacts
+      - --artifacts-destination=s3://mlflow-artifacts
+
+  # --- Phase 2.6 : stockage objet des artefacts MLflow (remplace le volume local) ---
+  minio:
+    image: quay.io/minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+    ports:
+      - "9000:9000"   # API S3 (utilisée par mlflow en interne, exposée pour debug)
+      - "9001:9001"   # console web -- direct, pas derrière nginx (cf. README)
+    volumes:
+      - minio-data:/data
+
+  minio-setup:
+    image: quay.io/minio/mc:latest
+    depends_on:
+      - minio
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        until mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"; do
+          echo attente minio...
+          sleep 1
+        done
+        mc mb -p local/mlflow-artifacts || true
+        mc ls local/mlflow-artifacts >/dev/null
+        echo bucket mlflow-artifacts pret
+
+  # --- Phase 2.5 : reverse proxy (point d'entrée unique api + mlflow) ---
+  nginx:
+    image: nginx:1.27-alpine
+    volumes:
+      - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "8000:8000"   # -> api   (identique à avant)
+      - "5000:5000"   # -> mlflow (identique à avant)
+    depends_on:
+      - api
+      - mlflow
 
 volumes:
   mlflow-data:
+  minio-data:
