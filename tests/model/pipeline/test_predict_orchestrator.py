@@ -9,7 +9,7 @@ import pandas as pd
 from projet_hydro.common import config
 from projet_hydro.model.pipeline.orchestrator import run_training
 from tests.model.pipeline.test_orchestrator import make_synthetic_df
-from projet_hydro.model.pipeline.predict_orchestrator import run_prediction, to_display_timezone
+from projet_hydro.model.pipeline.predict_orchestrator import to_display_timezone
 from projet_hydro.preprocessing.data_preparation.data_preparation_csv import write_data_preparation_csv
 
 

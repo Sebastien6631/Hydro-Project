@@ -632,3 +632,13 @@ open http://localhost:9001       # console MinIO (identifiants : .env MINIO_ROOT
 ```
 
 Pas de Postgres pour MLflow : backend SQLite sur volume, suffisant à 2.
+
+## CI (GitHub Actions) — Phase 3
+
+Sur chaque PR et push vers `dev`/`main` : `ruff check .` puis `pytest -q`
+(suite rapide, sans les tests `slow`, sans données DagsHub — les tests
+tournent sur des fixtures synthétiques, aucun secret nécessaire).
+
+Job unique `lint-test`, Python 3.11 natif (pas de conteneur) : plus rapide
+qu'un rebuild Docker à chaque run, et le but de la CI est de vérifier le
+code, pas l'image.
