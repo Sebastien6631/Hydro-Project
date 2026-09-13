@@ -234,7 +234,7 @@ consulter, pas à copier tel quel).
 | 3.2 | **Pipeline CI** (`ruff` + `pytest` sur PR) | xh | ✅ | `phase3/ci` → PR vers `dev`. Job `lint-test` GitHub Actions, Python natif (pas Docker), `ruff` E/F seulement (0 erreur, 3 fixées), `pytest -q` sur fixtures synthétiques (aucun secret requis) → 313 passed. |
 | 3.3 | Sécuriser + optimiser l'API | libre | ⬜ 🧪 | auth, logs, timeouts, pas de stack trace |
 | 3.4 | BentoML — service de serving | libre | ⬜ | `bentoml build` + `containerize` |
-| 3.5 | Scalabilité Docker / Kubernetes (Helm) | libre | ⬜ 🧪 | Deployment + Service + Ingress + HPA |
+| 3.5 | **Scalabilité Docker / Kubernetes (Helm)** | xh | 🔄 | `phase3/kubernetes-helm` → PR vers `dev`, **codé la nuit du 14/09 en autonome, PAS mergé — à relire**. Chart `infrastructure/helm/projet-hydro/` (Deployment+Service+Ingress+HPA) pour l'API seule (mlflow/minio/nginx restent en compose). `helm lint`/`template` validés sans cluster réel. Limite assumée et documentée : pas de PVC/initContainer `dvc pull` (next step, pas implémenté sans cluster pour tester). |
 
 ### Phase 4
 
