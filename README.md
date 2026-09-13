@@ -604,3 +604,31 @@ Ce qui est enregistré est le **répertoire d'artefacts**, pas une saveur MLflow
 chargeable : le modèle est un trio (LightGBM + BiLSTM + méta) plus ses
 scalers, et le chargement passe par `load_trained_models`. Le registry sert
 d'index et d'historique des promotions ; DVC porte les octets et le rollback.
+
+## Reverse proxy + stockage objet (NGINX + MinIO) — Phase 2
+
+`api` et `mlflow` n'exposent plus de port directement : **nginx** est
+l'unique point d'entrée réseau. Les URLs externes ne changent pas
+(`localhost:8000`, `localhost:5000`) — nginx forwarde vers le conteneur
+interne (`resolver` + résolution DNS paresseuse : nginx démarre même si
+`api`/`mlflow` ne sont pas encore prêts).
+
+```bash
+docker compose up -d nginx      # démarre aussi api + mlflow (+ minio via mlflow)
+curl http://localhost:8000/health
+open http://localhost:5000       # UI MLflow
+```
+
+**MinIO (stockage objet)** — remplace le volume local des artefacts MLflow
+par un vrai stockage S3 (bucket `mlflow-artifacts`, créé automatiquement par
+`minio-setup` au démarrage). Reste accessible **directement** (pas derrière
+nginx) : la console MinIO est une SPA qui suppose être servie à la racine —
+la proxifier sous un sous-chemin casserait ses assets, pas justifié pour un
+outil d'admin interne à l'équipe.
+
+```bash
+docker compose up -d minio
+open http://localhost:9001       # console MinIO (identifiants : .env MINIO_ROOT_USER/PASSWORD)
+```
+
+Pas de Postgres pour MLflow : backend SQLite sur volume, suffisant à 2.
