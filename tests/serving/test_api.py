@@ -1,5 +1,6 @@
-"""Tests boîte noire de l'API (phase 1). `run_prediction` est mocké — le
-modèle lui-même est couvert par tests/model/."""
+"""Tests boîte noire de l'API (phase 1). `predict_service` est mocké -- le
+modèle lui-même est couvert par tests/model/, la logique de prévision par
+tests/serving/test_predict_service.py."""
 
 from __future__ import annotations
 
@@ -10,7 +11,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from projet_hydro.common import config
-from projet_hydro.serving import api
+from projet_hydro.serving import api, predict_service
 
 
 @pytest.fixture
@@ -28,12 +29,14 @@ def client(tmp_path, monkeypatch):
 
     monkeypatch.setattr(config, "CENTRALES_DIR", centrales)
     monkeypatch.setattr(config, "MODELS_DIR", models)
-    monkeypatch.setattr(api, "has_production_model", lambda d, h: (models / d / f"h{h}" / "version.json").exists())
-    monkeypatch.setattr(api, "read_data_preparation_csv", lambda p: pd.DataFrame(
+    monkeypatch.setattr(
+        predict_service, "has_production_model", lambda d, h: (models / d / f"h{h}" / "version.json").exists()
+    )
+    monkeypatch.setattr(predict_service, "read_data_preparation_csv", lambda p: pd.DataFrame(
         {"debit_m3s": [10.0, 11.0]}, index=pd.to_datetime(["2024-01-01 00:00", "2024-01-01 01:00"])
     ))
     monkeypatch.setattr(
-        api, "run_prediction",
+        predict_service, "run_prediction",
         lambda *a, **k: {"now": "2024-01-01T01:00:00", "q_stacking_m3s": [1.1, 1.2, 1.3],
                          "q_entrant_m3s": [1.0, 1.1, 1.2]},
     )
@@ -70,6 +73,6 @@ def test_predict_unknown_centrale(client):
 
 
 def test_predict_no_model(client, monkeypatch):
-    monkeypatch.setattr(api, "has_production_model", lambda d, h: False)
+    monkeypatch.setattr(predict_service, "has_production_model", lambda d, h: False)
     r = client.post("/predict", json={"dossier": "touzac_g2_G2"})
     assert r.status_code == 404

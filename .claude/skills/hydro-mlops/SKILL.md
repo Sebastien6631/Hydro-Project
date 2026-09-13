@@ -233,7 +233,7 @@ consulter, pas à copier tel quel).
 | 3.1 | **Airflow** — orchestration bout-en-bout | sg | 🔄 | démarré le 11/09, DAGs `BashOperator` → `cron/scripts/` ; DAG entraînement auto |
 | 3.2 | **Pipeline CI** (`ruff` + `pytest` sur PR) | xh | ✅ | `phase3/ci` → PR vers `dev`. Job `lint-test` GitHub Actions, Python natif (pas Docker), `ruff` E/F seulement (0 erreur, 3 fixées), `pytest -q` sur fixtures synthétiques (aucun secret requis) → 313 passed. |
 | 3.3 | Sécuriser + optimiser l'API | libre | ⬜ 🧪 | auth, logs, timeouts, pas de stack trace |
-| 3.4 | BentoML — service de serving | libre | ⬜ | `bentoml build` + `containerize` |
+| 3.4 | **BentoML** — service de serving | xh | 🔄 | `phase3/bentoml` → PR vers `dev`, **codé la nuit du 14/09 en autonome, PAS mergé — à relire**. Extrait `predict_service.py` (logique de prévision partagée FastAPI+BentoML, ponytail : zéro duplication). `bento_service.py` (`@bentoml.service`), `Dockerfile.bento` séparé (bentoml pas dans l'image app/CI), port 3000, hors nginx (démo de compétence, pas un 2ᵉ chemin de prod). |
 | 3.5 | Scalabilité Docker / Kubernetes (Helm) | libre | ⬜ 🧪 | Deployment + Service + Ingress + HPA |
 
 ### Phase 4

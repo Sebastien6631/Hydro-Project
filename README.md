@@ -642,3 +642,23 @@ tournent sur des fixtures synthétiques, aucun secret nécessaire).
 Job unique `lint-test`, Python 3.11 natif (pas de conteneur) : plus rapide
 qu'un rebuild Docker à chaque run, et le but de la CI est de vérifier le
 code, pas l'image.
+
+## BentoML — serving alternatif — Phase 3.4
+
+Démontre le serving via **BentoML** en plus de l'API FastAPI (phase 1) : même
+logique de prévision (`serving/predict_service.py`, extraite pour ne pas être
+dupliquée entre les deux frameworks), deux surfaces de serving. Port 3000,
+**hors nginx** (démonstration de compétence, pas un 2ᵉ chemin de prod — la
+prod reste FastAPI derrière nginx).
+
+Image séparée (`Dockerfile.bento`) : bentoml n'est pas une dépendance du
+cœur du projet ni de l'image app/CI.
+
+```bash
+docker compose up -d bento
+curl -X POST http://localhost:3000/health  -H "content-type: application/json" -d '{}'
+curl -X POST http://localhost:3000/models  -H "content-type: application/json" -d '{}'
+curl -X POST http://localhost:3000/predict -H "content-type: application/json" -d '{"dossier": "touzac_g2_G2"}'
+```
+
+Probes standard BentoML : `GET /livez`, `GET /readyz` (200 si le service a démarré).
