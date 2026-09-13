@@ -230,8 +230,8 @@ consulter, pas à copier tel quel).
 
 | # | Tâche | Qui | État | Notes |
 |---|---|---|---|---|
-| 3.1 | **Airflow** — orchestration bout-en-bout | libre | ⬜ 🧪 | DAGs `BashOperator` → `cron/scripts/` ; DAG entraînement auto |
-| 3.2 | Pipeline CI (`ruff` + `pytest` sur PR) | libre | ⬜ 🧪 | GitHub Actions |
+| 3.1 | **Airflow** — orchestration bout-en-bout | sg | 🔄 | démarré le 11/09, DAGs `BashOperator` → `cron/scripts/` ; DAG entraînement auto |
+| 3.2 | **Pipeline CI** (`ruff` + `pytest` sur PR) | xh | ✅ | `phase3/ci` → PR vers `dev`. Job `lint-test` GitHub Actions, Python natif (pas Docker), `ruff` E/F seulement (0 erreur, 3 fixées), `pytest -q` sur fixtures synthétiques (aucun secret requis) → 313 passed. |
 | 3.3 | Sécuriser + optimiser l'API | libre | ⬜ 🧪 | auth, logs, timeouts, pas de stack trace |
 | 3.4 | BentoML — service de serving | libre | ⬜ | `bentoml build` + `containerize` |
 | 3.5 | Scalabilité Docker / Kubernetes (Helm) | libre | ⬜ 🧪 | Deployment + Service + Ingress + HPA |
