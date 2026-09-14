@@ -642,6 +642,25 @@ tournent sur des fixtures synthétiques, aucun secret nécessaire).
 Job unique `lint-test`, Python 3.11 natif (pas de conteneur) : plus rapide
 qu'un rebuild Docker à chaque run, et le but de la CI est de vérifier le
 code, pas l'image.
+## Sécurisation de l'API — Phase 3.3
+
+- **Clé API optionnelle** (`API_KEY` dans `.env`, vide par défaut = désactivée
+  y compris tests/CI) : à fournir dans l'en-tête `X-API-Key` pour `/models` et
+  `/predict`. `/health` reste public (convention monitoring).
+- **Logs structurés** : une ligne JSON par requête (`request_id`, méthode,
+  route, statut, latence), `request_id` renvoyé dans l'en-tête `X-Request-ID`.
+- **Timeouts + rate-limit** côté nginx (déjà le point de passage unique,
+  phase 2.5) plutôt que dans l'app : 10 req/s/IP (rafale 20), 30s de lecture
+  max sur `/predict`.
+- Pas de stack trace exposée (déjà en place depuis la phase 1) : toute
+  exception de `run_prediction` devient un message court, jamais la trace.
+
+```bash
+# .env : API_KEY=ma-cle
+curl http://localhost:8000/models                              # 401
+curl -H "X-API-Key: ma-cle" http://localhost:8000/models        # 200
+```
+
 ## Kubernetes (Helm) — Phase 3.5
 
 Chart minimal `infrastructure/helm/projet-hydro/` : **Deployment + Service +
