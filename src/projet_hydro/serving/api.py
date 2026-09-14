@@ -5,11 +5,14 @@ Endpoints :
   GET  /models   — modèles promus (version, KGE)      [clé API si activée]
   POST /predict  — prévision débit h8 pour une centrale [clé API si activée]
 
-Sécurisation (phase 3) : clé API optionnelle (`config.API_KEY`, en-tête
+Sécurisation (phase 3.3) : clé API optionnelle (`config.API_KEY`, en-tête
 `X-API-Key`) + logs structurés par requête (`request_id`, latence). Vide par
 défaut (tests/CI inchangés) ; timeouts + rate-limit gérés côté nginx
 (`infrastructure/nginx/nginx.conf`), pas dans l'app -- déjà le point de
 passage unique (phase 2.5).
+
+La logique de prévision (`predict_service.py`, phase 3.4) est partagée avec
+le service BentoML -- cette API ne fait que traduire ses erreurs en HTTP.
 
 Lancement : uvicorn projet_hydro.serving.api:app  (voir docker-compose service `api`).
 """
@@ -26,11 +29,8 @@ from pydantic import BaseModel
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from projet_hydro.common import config
-from projet_hydro.model.pipeline.eligibility import has_production_model
-from projet_hydro.model.pipeline.predict_orchestrator import run_prediction
-from projet_hydro.preprocessing.data_preparation.data_preparation_csv import read_data_preparation_csv
-
-HORIZON = 8  # périmètre projet : h8 uniquement
+from projet_hydro.serving import predict_service
+from projet_hydro.serving.predict_service import HORIZON, PredictionError
 
 logger = logging.getLogger("projet_hydro.api")
 
@@ -82,49 +82,22 @@ class PredictResponse(BaseModel):
     points: list[Point]
 
 
-def _served_dossiers() -> list[str]:
-    return sorted(p.parent.parent.name for p in config.MODELS_DIR.glob(f"*/h{HORIZON}/version.json"))
-
-
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok", "horizon": HORIZON, "dossiers": _served_dossiers()}
+    return {"status": "ok", "horizon": HORIZON, "dossiers": predict_service.served_dossiers()}
 
 
 @app.get("/models", dependencies=[Depends(require_api_key)])
 def models() -> dict:
-    out = []
-    for dossier in _served_dossiers():
-        data = json.loads((config.MODELS_DIR / dossier / f"h{HORIZON}" / "version.json").read_text(encoding="utf-8"))
-        out.append({"dossier": dossier, "horizon": HORIZON, **data})
-    return {"models": out}
+    return {"models": predict_service.model_infos()}
 
 
 @app.post("/predict", response_model=PredictResponse, dependencies=[Depends(require_api_key)])
 def predict(req: PredictRequest) -> PredictResponse:
-    dossier = req.dossier
-
-    if not has_production_model(dossier, HORIZON):
-        raise HTTPException(404, f"aucun modèle promu pour {dossier} h{HORIZON}")
-
-    bv_path = config.CENTRALES_DIR / dossier / "bv.json"
-    if not bv_path.exists():
-        raise HTTPException(404, f"centrale inconnue : {dossier}")
-    bv_json = json.loads(bv_path.read_text(encoding="utf-8"))
-
-    # source="frozen" : ancrer `now` sur la dernière ligne du CSV (pas l'horloge).
-    dp = read_data_preparation_csv(config.CENTRALES_DIR / dossier / "data_preparation.csv")
-    if dp.empty:
-        raise HTTPException(404, f"pas de data_preparation.csv pour {dossier}")
-    now = dp.index.max()
-
     try:
-        result = run_prediction(dossier, HORIZON, bv_json["exutoire"], bv_json, now, source="frozen")
+        result = predict_service.predict_dossier(req.dossier)
+    except PredictionError as exc:
+        raise HTTPException(404, str(exc)) from exc
     except Exception as exc:  # noqa: BLE001 — pas de stack trace côté client
         raise HTTPException(500, f"échec de la prévision : {exc}") from exc
-
-    points = [
-        Point(lead=i, q_stacking_m3s=round(s, 3), q_entrant_m3s=round(e, 3))
-        for i, (s, e) in enumerate(zip(result["q_stacking_m3s"], result["q_entrant_m3s"]))
-    ]
-    return PredictResponse(dossier=dossier, horizon=HORIZON, now=result["now"], points=points)
+    return PredictResponse(**result)
