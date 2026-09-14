@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "projet-hydro.fullname" . }}
+  labels:
+    {{- include "projet-hydro.labels" . | nindent 4 }}
+spec:
+  # Pas de replicas fixe si l'autoscaling est actif -- HPA prend la main,
+  # un `replicas:` ici entrerait en conflit (Helm le réécrirait à chaque
+  # déploiement, HPA le réajusterait juste après).
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "projet-hydro.labels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "projet-hydro.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: api
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["uvicorn", "projet_hydro.serving.api:app", "--host=0.0.0.0", "--port=8000"]
+          ports:
+            - containerPort: 8000
+          env:
+            - name: API_KEY
+              value: {{ .Values.apiKey.value | quote }}
+            - name: MLFLOW_TRACKING_URI
+              value: {{ .Values.env.mlflowTrackingUri | quote }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 20
