@@ -1,0 +1,44 @@
+# Périmètre volontairement réduit à l'API (le service exposé au public) --
+# mlflow/minio/nginx restent en docker-compose (usage interne équipe, pas
+# le sujet du critère jury "scalabilité"). cf. NOTES.txt pour la limite
+# connue sur les données (models/centrales).
+
+replicaCount: 2
+
+image:
+  repository: projet_hydro
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8000
+
+ingress:
+  enabled: true
+  className: nginx
+  host: projet-hydro.local
+  path: /
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+
+# Vide = authentification désactivée (cf. common/config.py::API_KEY). En
+# prod, passer par --set apiKey.value=... ou un Secret externe -- jamais
+# committé dans values.yaml.
+apiKey:
+  value: ""
+
+env:
+  mlflowTrackingUri: ""
