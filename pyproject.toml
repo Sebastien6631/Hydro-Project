@@ -25,6 +25,7 @@ dependencies = [
     "fastapi",        # API d'inférence (phase 1)
     "uvicorn",
     "prometheus-client",  # métriques /metrics, scrapées par Prometheus (phase 4.1)
+    "evidently==0.7.23",  # dérive des données, cron/scripts/check-drift.py (phase 4.2)
     # Pin strict : le client parle a un serveur d'image figee
     # (docker-compose.yml, service mlflow) -- les deux doivent bouger ensemble.
     "mlflow==3.16.0", # suivi d'expériences + registry (phase 2)

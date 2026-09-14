@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+
+from projet_hydro.common import config
 from projet_hydro.serving import metrics, predict_service
 
 
@@ -35,3 +38,22 @@ def test_render_latest_exposes_prometheus_format(monkeypatch):
     assert b"model_kge_stacking" in body
     assert b'dossier="touzac_g2_G2"' in body
     assert "text/plain" in content_type
+
+
+def test_refresh_drift_gauges_reads_reports_written_by_check_drift(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "ROOT", tmp_path)
+    drift_dir = tmp_path / "logs" / "drift"
+    drift_dir.mkdir(parents=True)
+    (drift_dir / "touzac_g2_G2.json").write_text(
+        json.dumps({"dossier": "touzac_g2_G2", "drift_share": 0.33, "dataset_drift": False}), encoding="utf-8"
+    )
+
+    metrics.refresh_drift_gauges()
+
+    assert metrics.DATA_DRIFT_SHARE.labels(dossier="touzac_g2_G2")._value.get() == 0.33
+    assert metrics.DATA_DRIFT_DETECTED.labels(dossier="touzac_g2_G2")._value.get() == 0.0
+
+
+def test_refresh_drift_gauges_handles_missing_directory(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "ROOT", tmp_path)  # logs/drift/ n'existe pas encore
+    metrics.refresh_drift_gauges()  # ne doit pas lever
