@@ -73,3 +73,38 @@ def test_predict_no_model(client, monkeypatch):
     monkeypatch.setattr(api, "has_production_model", lambda d, h: False)
     r = client.post("/predict", json={"dossier": "touzac_g2_G2"})
     assert r.status_code == 404
+
+
+def test_health_never_requires_api_key(client, monkeypatch):
+    monkeypatch.setattr(config, "API_KEY", "secret")
+    assert client.get("/health").status_code == 200
+
+
+def test_models_rejects_missing_or_wrong_api_key_when_set(client, monkeypatch):
+    monkeypatch.setattr(config, "API_KEY", "secret")
+    assert client.get("/models").status_code == 401
+    assert client.get("/models", headers={"X-API-Key": "faux"}).status_code == 401
+
+
+def test_models_accepts_correct_api_key(client, monkeypatch):
+    monkeypatch.setattr(config, "API_KEY", "secret")
+    r = client.get("/models", headers={"X-API-Key": "secret"})
+    assert r.status_code == 200
+
+
+def test_predict_rejects_missing_api_key_when_set(client, monkeypatch):
+    monkeypatch.setattr(config, "API_KEY", "secret")
+    r = client.post("/predict", json={"dossier": "touzac_g2_G2"})
+    assert r.status_code == 401
+
+
+def test_predict_accepts_correct_api_key(client, monkeypatch):
+    monkeypatch.setattr(config, "API_KEY", "secret")
+    r = client.post("/predict", json={"dossier": "touzac_g2_G2"}, headers={"X-API-Key": "secret"})
+    assert r.status_code == 200, r.text
+
+
+def test_response_carries_request_id_header(client):
+    r = client.get("/health")
+    assert r.headers["X-Request-ID"]
+    assert len(r.headers["X-Request-ID"]) == 8
