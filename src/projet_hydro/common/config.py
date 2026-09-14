@@ -73,3 +73,9 @@ ARCHIVE_ROOT = ROOT / "ARCHIVE"
 # Racine hydrospot_stream (source de puissance, déjà utilisée par Previ_v2).
 PUISSANCE_SOURCE_ROOT = Path(_get("PREVI_PUISSANCE_SOURCE_ROOT", ""))
 
+# --- API d'inférence (sécurisation, phase 3) --------------------------------
+# Vide (défaut, y compris tests/CI) = authentification désactivée. Non vide =
+# clé à fournir dans l'en-tête `X-API-Key` pour /models et /predict (/health
+# reste public, convention monitoring).
+API_KEY = _get("API_KEY", "")
+
