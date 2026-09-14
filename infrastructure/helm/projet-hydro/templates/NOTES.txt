@@ -1,0 +1,16 @@
+projet-hydro déployé.
+
+  kubectl get pods -l app.kubernetes.io/name={{ .Chart.Name }}
+  kubectl port-forward svc/{{ include "projet-hydro.fullname" . }} 8000:{{ .Values.service.port }}
+  curl http://localhost:8000/health
+
+LIMITE CONNUE (assumée, pas un oubli) : ce chart ne peuple PAS `models/` ni
+`centrales/` dans le conteneur -- en docker-compose ce sont des volumes
+bind-montés depuis l'hôte après `dvc pull`. Sans données, l'API démarre et
+répond normalement (health check OK, `/models` renvoie une liste vide,
+`/predict` renvoie 404 "aucun modèle promu" -- dégradation gracieuse,
+aucun crash) mais ne sert aucune prévision réelle.
+
+Pour une vraie mise en prod k8s, il faudrait un PVC + un initContainer
+`dvc pull` (secrets DagsHub via un k8s Secret) -- documenté ici comme next
+step plutôt qu'implémenté à l'aveugle sans cluster réel pour le valider.

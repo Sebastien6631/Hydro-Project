@@ -1,0 +1,6 @@
+apiVersion: v2
+name: projet-hydro
+description: API de prévision de débit (projet_hydro) — chart minimal (phase 3.5)
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

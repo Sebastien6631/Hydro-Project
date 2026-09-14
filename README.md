@@ -681,3 +681,27 @@ curl -X POST http://localhost:3000/predict -H "content-type: application/json" -
 ```
 
 Probes standard BentoML : `GET /livez`, `GET /readyz` (200 si le service a démarré).
+
+## Kubernetes (Helm) — Phase 3.5
+
+Chart minimal `infrastructure/helm/projet-hydro/` : **Deployment + Service +
+Ingress + HPA** pour l'API (le service exposé au public — mlflow/minio/nginx
+restent en docker-compose, usage interne équipe, pas le sujet du critère
+scalabilité). Même image que docker-compose (`projet_hydro:latest`).
+
+Validé par `helm lint` / `helm template` (pas de cluster réel requis pour la
+validation statique) :
+
+```bash
+docker run --rm -v "$(pwd)/infrastructure/helm/projet-hydro:/chart" \
+  --entrypoint helm alpine/helm:3.16.3 lint /chart
+docker run --rm -v "$(pwd)/infrastructure/helm/projet-hydro:/chart" \
+  --entrypoint helm alpine/helm:3.16.3 template test /chart
+```
+
+**Limite assumée** (cf. `templates/NOTES.txt`) : le chart ne peuple pas
+`models/`/`centrales/` dans le conteneur (bind-montés depuis l'hôte en
+docker-compose, après `dvc pull`). Sans données, l'API démarre et répond
+normalement (dégradation gracieuse, déjà le comportement testé) mais ne sert
+aucune prévision réelle — un PVC + initContainer `dvc pull` est le next step
+documenté, pas implémenté à l'aveugle sans cluster pour le valider.
