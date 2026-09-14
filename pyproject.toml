@@ -24,6 +24,7 @@ dependencies = [
     "dvc-http",       # remote DVC DagsHub en https
     "fastapi",        # API d'inférence (phase 1)
     "uvicorn",
+    "prometheus-client",  # métriques /metrics, scrapées par Prometheus (phase 4.1)
     # Pin strict : le client parle a un serveur d'image figee
     # (docker-compose.yml, service mlflow) -- les deux doivent bouger ensemble.
     "mlflow==3.16.0", # suivi d'expériences + registry (phase 2)
