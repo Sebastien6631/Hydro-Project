@@ -111,3 +111,17 @@ def test_response_carries_request_id_header(client):
     r = client.get("/health")
     assert r.headers["X-Request-ID"]
     assert len(r.headers["X-Request-ID"]) == 8
+
+
+def test_metrics_never_requires_api_key(client, monkeypatch):
+    monkeypatch.setattr(config, "API_KEY", "secret")
+    assert client.get("/metrics").status_code == 200
+
+
+def test_metrics_exposes_model_kge_and_request_counter(client):
+    client.get("/health")
+    r = client.get("/metrics")
+    assert r.status_code == 200
+    assert "model_kge_stacking" in r.text
+    assert 'dossier="touzac_g2_G2"' in r.text
+    assert "http_requests_total" in r.text

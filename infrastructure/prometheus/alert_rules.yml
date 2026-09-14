@@ -1,0 +1,42 @@
+# Seuils d'alerte (phase 4.1). Évalués par Prometheus lui-même, visibles
+# dans son onglet "Alerts" -- pas d'Alertmanager (routage email/Slack) :
+# ajouté ça aurait demandé un canal de notification réel (webhook/SMTP) qu'on
+# n'a pas pour ce projet de cours ; documenté comme extension naturelle,
+# pas implémenté à l'aveugle sans pouvoir le tester pour de vrai.
+groups:
+  - name: projet-hydro
+    rules:
+      - alert: APIDown
+        expr: up{job="api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "L'API ne répond plus à Prometheus depuis 1 min"
+
+      - alert: ModelKGELow
+        expr: model_kge_stacking < 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "KGE du modèle {{ $labels.dossier }} sous 0.5 depuis 5 min"
+
+      - alert: HighRequestLatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Latence P95 de l'API > 5s depuis 5 min"
+
+      # Phase 4.2 -- data_drift_detected n'est mis à jour qu'au lancement de
+      # check-drift.py (pas en continu) : "for" long, pensé pour survivre
+      # entre deux lancements manuels/planifiés, pas pour réagir vite.
+      - alert: DataDrift
+        expr: data_drift_detected == 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Dérive des données d'entrée détectée pour {{ $labels.dossier }}"

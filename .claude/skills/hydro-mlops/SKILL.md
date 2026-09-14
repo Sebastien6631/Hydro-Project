@@ -240,8 +240,8 @@ consulter, pas à copier tel quel).
 
 | # | Tâche | Qui | État | Notes |
 |---|---|---|---|---|
-| 4.1 | Prometheus + Grafana + **seuils d'alerte** | libre | ⬜ 🧪 | dashboards provisionnés + règles d'alerte |
-| 4.2 | Détection de dérive Evidently | libre | ⬜ 🧪 | dérive features d'entrée vs fenêtre d'entraînement |
+| 4.1 | **Prometheus + Grafana + seuils d'alerte** | xh | 🔄 | `phase4/monitoring` → PR vers `dev`. `GET /metrics` (Prometheus, `serving/metrics.py`) sur l'API : requêtes/latence + KGE par centrale (recalculé au scrape, pas de thread). Dashboard provisionné (requêtes/s, latence P95, KGE, CPU hôte). 3 règles d'alerte évaluées par Prometheus (API down, KGE<0.5, latence P95>5s) -- pas d'Alertmanager (pas de canal de notif réel à câbler). Hors nginx (comme MinIO). |
+| 4.2 | **Détection de dérive Evidently** | xh | 🔄 | `phase4/evidently-drift` (au-dessus de `phase4/monitoring`) → PR vers `dev`. `monitoring/drift.py` (test K-S par colonne, seuil 40% de colonnes en dérive = `dataset_drift`), `cron/scripts/check-drift.py` (jamais bloquant, contrairement à `validate-data.py`). Rapports JSON sous `logs/drift/`, relus (pas recalculés) par `/metrics` (`data_drift_share`, `data_drift_detected`) + alerte `DataDrift`. evidently==0.7.23 (version résolue et testée en vrai avant d'écrire le code). |
 | 4.3 | Mises à jour automatisées du modèle | libre | ⬜ | réentraînement + promotion KGE, planifié Airflow |
 | 4.4 | Déploiement cloud (documenté a minima) | équipe | ⏸️ | pas de crédits cloud — stratégie décrite |
 | 4.5 | Documentation technique finale | équipe | ⬜ 🧪 | `ARCHITECTURE.md` + `MLOPS.md` (brique → cours) |
