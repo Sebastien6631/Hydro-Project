@@ -258,6 +258,61 @@ consulter, pas à copier tel quel).
 | T5 | Chacun : `.env` + token DagsHub + `dvc pull` OK | chacun | ⬜ | |
 | T6 | Confirmer le calendrier des deadlines avec le mentor | équipe | ⬜ | sem. 8/12/16/22 vs réel |
 | T7 | Slides de soutenance + démo live | équipe | ⬜ | démo = élément clé du jury |
+| T8 | Après chaque merge de PR sur GitHub : `git pull origin dev` puis `git push origin dev` | celui qui merge | ⬜ | le bouton Merge s'exécute chez GitHub, DagsHub ne le voit pas. Vu le 11/09 : DagsHub `dev` en retard de 5 commits. Alternative : mirroring côté DagsHub (réglage de compte, à voir à deux) |
+
+### Propositions en attente de décision à deux
+
+| # | Proposition | Par | Statut | À discuter |
+|---|---|---|---|---|
+| P1 | **Comptes nommés devant les UI internes** (`auth_basic` nginx) | sg, 15/09 | ⬜ à présenter à xh | point hebdo du 16/09 |
+
+**P1 — le problème.** MLflow, Airflow et la console MinIO n'ont aucune
+protection : MLflow n'a pas d'auth native, Airflow tourne en
+`SIMPLE_AUTH_MANAGER_ALL_ADMINS=True`, MinIO en `minioadmin/minioadmin123`.
+L'API, elle, est protégée (3.3, `X-API-Key`). En soutenance, « les outils
+d'admin sont ouverts » est une question que le jury peut poser.
+
+**Ce que ça modifierait** (petit, tout dans le périmètre nginx de 2.5) :
+
+| Fichier | Changement |
+|---|---|
+| `infrastructure/nginx/nginx.conf` | sur les blocs `listen 5000` (MLflow) et `listen 8080` (Airflow) : `auth_basic "projet_hydro"; auth_basic_user_file /etc/nginx/.htpasswd; proxy_set_header Authorization "";` (la 3ᵉ ligne : ne pas transmettre le Basic à Airflow, qui a son propre schéma d'auth). Optionnel : router la console MinIO (9001) par nginx pour la couvrir aussi |
+| `infrastructure/nginx/.htpasswd` | **nouveau, gitignoré**. 3 comptes : `sebastien`, `xavier`, `prof`. Généré une fois : `docker run --rm httpd:alpine htpasswd -nb prof <mdp> >> .htpasswd` |
+| `docker-compose.yml` | monter `.htpasswd` dans le service nginx (`:ro`) |
+| `.gitignore`, `README.md` | la ligne d'exclusion + 3 lignes « générer ses comptes » |
+| Rien côté MLflow / Airflow / MinIO | c'est le point : nginx est la seule porte, les services gardent leur config |
+
+**Avantages**
+- Un identifiant pour tous les outils : le navigateur retient le login par
+  hôte, il ne redemande pas entre MLflow et Airflow.
+- Comptes **nommés** : `$remote_user` dans le log nginx = on sait qui a ouvert
+  quoi. Le compte `prof` se crée pour la soutenance et se supprime après.
+- Zéro config dans les services, donc zéro régression possible sur MLflow /
+  Airflow / MinIO. Ferme le `ponytail: ALL_ADMINS` du service airflow.
+- Coût : ~10 lignes de conf, un fichier, une demi-heure. Phrase pour le jury :
+  « l'API a sa clé, les outils d'admin sont derrière une authentification
+  centralisée sur le reverse proxy ».
+
+**Inconvénients / limites**
+- **Pas de rôles** : `prof` est admin comme nous. Une lecture seule demanderait
+  que chaque service comprenne les rôles — c'est du vrai SSO (Keycloak /
+  Authelia + OIDC dans Airflow et MinIO + un proxy d'auth pour MLflow) : un
+  conteneur de plus, trois intégrations, ~une semaine à deux, zéro point de
+  grille en plus. Écarté.
+- **Basic = mot de passe renvoyé à chaque requête**, en clair sans TLS. Sans
+  conséquence sur `localhost` ; en déploiement, TLS sur nginx d'abord (déjà
+  noté comme limite de 3.3).
+- **N'affecte pas les appels service-à-service** : Airflow → `mlflow:5000`
+  passe par le réseau interne, pas par nginx. C'est voulu, mais il faut le
+  savoir : la protection ne vaut que pour ce qui entre par les ports exposés.
+- La console MinIO garde **son** login derrière : deux mots de passe pour cet
+  outil-là, sauf à ne pas la router (elle reste alors directe et non protégée,
+  état actuel).
+
+**Qui** : sg propose de le faire dans la PR Airflow — il touche déjà
+`nginx.conf` pour le port 8080, et le `proxy_set_header Authorization ""` est
+un détail Airflow à tester par celui qui fait Airflow. À valider avec xh
+(c'est son périmètre 2.5).
 
 ---
 
