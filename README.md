@@ -60,7 +60,7 @@ projet_hydro/
 │   │                              #   bv_config, data_loading, oof_cache, stacking_fit, metrics,
 │   │                              #   predict, artifacts, plots, orchestrator (run_training),
 │   │                              #   predict_orchestrator (run_prediction), predict_window,
-│   │                              #   eligibility (12 mois / réentraînement mensuel),
+│   │                              #   eligibility (12 mois / réentraînement hebdo),
 │   │                              #   promotion (comparaison KGE + promotion versionnée DVC+git)
 │   ├── cli.py                     # point d'entrée de run.py (--train/--predict, MANUEL uniquement)
 │   └── postprocessing/           # archive.py (archivage horaire, local ./ARCHIVE) -- API FastAPI Previ_v2 non portée
@@ -421,7 +421,7 @@ architectures (Stacking, prédiction test set, plots) → `model/pipeline/`.
   `weights/hybrid/`), débit station + conversion turbine (`hydraulic.py` —
   puissance/chute/rendement).
 - **`model/pipeline/{eligibility,promotion}.py`** — éligibilité (12 mois /
-  réentraînement mensuel) et promotion versionnée (comparaison KGE candidat
+  réentraînement hebdomadaire, 7 j) et promotion versionnée (comparaison KGE candidat
   vs production sur le même holdout, `dvc add`+`git tag`, sûr face à un échec
   partiel). Cf. section `train.py` ci-dessus pour le détail opérationnel.
 

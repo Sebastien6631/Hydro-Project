@@ -119,7 +119,32 @@ services:
     ports:
       - "3000:3000"
 
-  # --- Phase 2.5 : reverse proxy (point d'entrée unique api + mlflow) ---
+  # --- Phase 3.1 : orchestration. `standalone` = webserver + scheduler +
+  # SQLite dans un seul processus : suffisant pour 2 DAGs et une demo, zero
+  # base a gerer. Image = projet + Airflow (airflow/Dockerfile) : les taches
+  # lancent `python cron/scripts/*.py` dans CE conteneur, sur le repo monte.
+  # DAGS_FOLDER pointe sur airflow/dags/ SEULEMENT : le scheduler re-importe
+  # ce dossier toutes les 30 s, le pointer sur /app lui ferait charger torch.
+  # Pas de `ports:` -- accessible via nginx (localhost:8080), comme mlflow.
+  # ponytail: SIMPLE_AUTH_MANAGER_ALL_ADMINS = pas de login en local ;
+  # a durcir avant toute exposition (meme logique que API_KEY vide).
+  airflow:
+    build:
+      context: airflow
+    image: projet_hydro-airflow:latest
+    working_dir: /app
+    environment:
+      <<: *env
+      AIRFLOW__CORE__DAGS_FOLDER: /app/airflow/dags
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      AIRFLOW__CORE__DEFAULT_TIMEZONE: Europe/Paris
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_ALL_ADMINS: "True"
+    volumes:
+      - .:/app
+      - airflow-data:/opt/airflow
+    command: ["airflow", "standalone"]
+
+  # --- Phase 2.5 : reverse proxy (point d'entrée unique api + mlflow + airflow) ---
   nginx:
     image: nginx:1.27-alpine
     volumes:
@@ -127,6 +152,9 @@ services:
     ports:
       - "8000:8000"   # -> api   (identique à avant)
       - "5000:5000"   # -> mlflow (identique à avant)
+      - "8080:8080"   # -> airflow
+    # airflow volontairement absent de depends_on : `up nginx` ne doit pas
+    # tirer l'image Airflow ; la résolution DNS paresseuse de nginx.conf suffit.
     depends_on:
       - api
       - mlflow
@@ -134,3 +162,4 @@ services:
 volumes:
   mlflow-data:
   minio-data:
+  airflow-data:
