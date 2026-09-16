@@ -2,7 +2,9 @@
 # runtime (docker-compose) ; ici on installe juste l'environnement.
 FROM python:3.11-slim
 
-ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 PIP_NO_CACHE_DIR=1
+# PIP_DEFAULT_TIMEOUT : torch fait 192 Mo, le delai pip par defaut (15 s de
+# silence) lache sur une connexion lente -- build echoue vu le 2026-09-15.
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 PIP_NO_CACHE_DIR=1 PIP_DEFAULT_TIMEOUT=300
 
 # git + dvc : promotion.py les appelle en sous-process. libgomp1 : runtime
 # OpenMP de LightGBM. curl : healthchecks des phases suivantes.
