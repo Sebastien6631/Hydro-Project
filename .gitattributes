@@ -1,0 +1,5 @@
+# Scripts exécutés dans les conteneurs Linux : LF obligatoire quel que soit
+# le poste. Avec core.autocrlf=true (défaut Git for Windows), un checkout
+# transforme `#!/bin/sh` en `#!/bin/sh\r` et le conteneur échoue avec
+# "exec entrypoint.sh: no such file or directory" (vu le 2026-09-15).
+*.sh text eol=lf
