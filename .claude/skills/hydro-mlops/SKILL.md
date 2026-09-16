@@ -197,7 +197,7 @@ consulter, pas à copier tel quel).
 | Support GPU + early stopping | ✅ | `model/device.py` (GPU = local seulement) |
 | Promotion de modèle (`dvc add` + tag git) | ✅ | `model/pipeline/promotion.py` |
 | Tests unitaires | ✅ | `pytest -q` |
-| Modes d'entraînement automatisés | ❌ retirés | à re-brancher via Airflow (phase 3) |
+| Modes d'entraînement automatisés | ✅ | re-branchés via Airflow : DAG `hydro_train` hebdo (lundi 02:00), `train.py` garde la règle d'éligibilité (7 j) |
 | **Docker / Compose** (env conteneurisé) | ✅ | `Dockerfile` + `docker-compose.yml` + `entrypoint.sh` — `docker compose run --rm app` → 340 tests verts. Section README « Conteneurisation ». |
 | **MLflow + Model Registry** | ✅ | `src/projet_hydro/tracking/mlflow_log.py`, service `mlflow` dans compose. Section README « Suivi d'expériences ». |
 | CI · monitoring · k8s | ⬜ | **à construire** |
@@ -230,7 +230,7 @@ consulter, pas à copier tel quel).
 
 | # | Tâche | Qui | État | Notes |
 |---|---|---|---|---|
-| 3.1 | **Airflow** — orchestration bout-en-bout | sg | 🔄 | démarré le 11/09, DAGs `BashOperator` → `cron/scripts/` ; DAG entraînement auto |
+| 3.1 | **Airflow** — orchestration bout-en-bout | sg | ✅ | `phase3/airflow` → PR vers `dev`. `airflow/dags/hydro_predict.py` (horaire h+5 : `sources{debit ∥ meteo}` → `predict_archive`, les deux sources bloquent, validé en vrai 75 s) et `hydro_train.py` (lundi 02:00 : `data_preparation` → `validate --strict` → `train --promote`, **sans push** — décision en attente, cf. Propositions). Image `airflow/Dockerfile` = `FROM projet_hydro` + Airflow 3.3.1 (`build app` **puis** `build airflow`), `standalone`, derrière nginx `:8080`. `task_id` = stages DVC, scripts et pas `dvc repro`. `cron/scripts/check-meteo.py` (read_points ignore les échecs → check explicite). `tests/dags/` (skip sans Airflow). `RETRAIN_INTERVAL_DAYS` 30→7. Pièges réglés : CRLF sur `*.sh` (`.gitattributes`), TZ UTC des conteneurs (`TZ` dans x-env), `airflow/` homonyme Python. Section README « Orchestration (Airflow) ». |
 | 3.2 | **Pipeline CI** (`ruff` + `pytest` sur PR) | xh | ✅ | `phase3/ci` → PR vers `dev`. Job `lint-test` GitHub Actions, Python natif (pas Docker), `ruff` E/F seulement (0 erreur, 3 fixées), `pytest -q` sur fixtures synthétiques (aucun secret requis) → 313 passed. |
 | 3.3 | **Sécuriser + optimiser l'API** | xh | ✅ | PR #12 mergée `dev`+`main`. Clé API optionnelle (`config.API_KEY`, en-tête `X-API-Key`, vide par défaut = tests/CI inchangés), logs JSON par requête (`request_id`), timeouts+rate-limit côté nginx (10 req/s/IP, 30s read). 6 tests. |
 | 3.4 | **BentoML** — service de serving | xh | ✅ | PR #14 mergée `dev`+`main`. Extrait `predict_service.py` (logique de prévision partagée FastAPI+BentoML, ponytail : zéro duplication). `bento_service.py` (`@bentoml.service`), `Dockerfile.bento` séparé (bentoml pas dans l'image app/CI), port 3000, hors nginx (démo de compétence, pas un 2ᵉ chemin de prod). Vérifié en vrai (curl réel, pas que mocké) : mêmes résultats que l'API FastAPI. |

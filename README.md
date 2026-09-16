@@ -71,12 +71,16 @@ projet_hydro/
 │   └── hybrid_candidate/<dossier>/h<horizon>/ # candidat en cours d'évaluation par train.py (auto)
 ├── ARCHIVE/                        # archive locale des prévisions horaires (gitignored)
 ├── cron/
-│   └── scripts/                  # CLI minces (maj-data, onboarding-check,
-│                                  #   build-data-preparation, train, predict-archive) --
-│                                  #   lancement manuel, pas de cron/wrappers/ (retiré, cf. note en tête)
+│   └── scripts/                  # CLI minces (maj-data, onboarding-check, build-data-preparation,
+│                                  #   validate-data, check-meteo, train, predict-archive) --
+│                                  #   appelés par dvc repro ET par les DAGs Airflow
 ├── dvc/
-│   ├── preprocessing/dvc.yaml     # debit -> onboarding_check -> bv -> data_preparation (manuel)
+│   ├── preprocessing/dvc.yaml     # debit -> onboarding_check -> data_preparation -> validate
+│   ├── model/dvc.yaml             # train (--promote)
 │   └── postprocessing/dvc.yaml    # predict_archive (horaire)
+├── airflow/
+│   ├── Dockerfile                 # FROM projet_hydro + apache-airflow (build app PUIS build airflow)
+│   └── dags/                      # hydro_predict (horaire), hydro_train (lundi 02:00) -- cf. §Orchestration
 ├── outputs/                       # sorties de prédiction/entraînement (gitignored)
 ├── tests/                         # miroir de src/projet_hydro/
 ├── centrales/                     # données des 2 centrales -- <dossier>/ versionné via DVC
@@ -322,15 +326,16 @@ ne bloque jamais la validation des autres (`try/except` par item).
 python cron/scripts/onboarding-check.py   # tous les raccordements pas encore onboardés (pas de --dossier)
 ```
 
-### `train.py` — entraînement automatisé (2 cadences)
+### `train.py` — entraînement (éligibilité + promotion conditionnelle)
 
-- `run_new_dossiers()` (quotidien) : pour chaque horizon **sans** modèle en
-  production, rafraîchit `data_preparation.csv` pour ce dossier puis entraîne
-  dès que 12 mois d'historique sont atteints.
-- `run_monthly_retrain()` (mensuel) : pour chaque horizon **déjà** en
-  production, réentraîne inconditionnellement (l'invocation mensuelle est
-  l'échéance) — promeut seulement si le nouveau modèle est meilleur (KGE sur
-  le même holdout que le modèle en prod, cf. `model/pipeline/promotion.py`).
+Sans `--dossier` : boucle sur les centrales onboardées (h8) et n'entraîne que
+celles que `is_eligible_for_training` retient — **12 mois d'historique** pour
+un premier modèle, **7 jours** depuis le dernier essai pour un réentraînement
+(`RETRAIN_INTERVAL_DAYS`, aligné sur le DAG Airflow hebdo). Rien d'éligible →
+« Aucune centrale éligible aujourd'hui. » en quelques secondes. La règle vit
+dans le code testé, pas dans un planificateur : Airflow (ci-dessous) ne fait
+que sonner. `--promote` ne promeut que si le KGE du candidat bat la production
+(même holdout, cf. `model/pipeline/promotion.py`).
 
 ```bash
 python cron/scripts/train.py --dossier apas_G1_G4 --horizon 8            # candidat seul, aucune promotion
@@ -705,3 +710,98 @@ docker-compose, après `dvc pull`). Sans données, l'API démarre et répond
 normalement (dégradation gracieuse, déjà le comportement testé) mais ne sert
 aucune prévision réelle — un PVC + initContainer `dvc pull` est le next step
 documenté, pas implémenté à l'aveugle sans cluster pour le valider.
+
+## Orchestration (Airflow) — Phase 3.1
+
+Deux DAGs, deux cadences, dans `airflow/dags/`. Les tâches sont des
+`BashOperator` qui lancent les **scripts `cron/scripts/`** — les mêmes que
+`dvc repro` — dans le conteneur Airflow, sur le repo bind-monté.
+
+```
+hydro_predict  (toutes les heures, h+5)
+  sources ─┬─ debit   maj-data.py          Hub'Eau, débit dans le store local
+           └─ meteo   check-meteo.py       Open-Meteo répond-il pour [now, now+8h] ?
+        ──▶ predict_archive  predict-archive.py
+
+hydro_train    (lundi 02:00)
+  data_preparation ──▶ validate --strict ──▶ train --promote
+```
+
+**Mêmes stages que DVC, groupés autrement.** Les `dvc.yaml` sont découpés par
+domaine (preprocessing / model / postprocessing), les DAGs par cadence
+(servir / entretenir) ; les `task_id` reprennent les noms de stages pour que
+la correspondance se lise. Les DAGs appellent les scripts et **pas
+`dvc repro`** : chaque repro réécrit `dvc.lock`, l'arbre git devient sale et
+`promote_model` refuse de committer.
+
+**Pas de `data_preparation` dans le DAG horaire** : la prédiction en
+`source="live"` assemble sa fenêtre elle-même (débit du store local + météo en
+direct). `data_preparation.csv` ne sert qu'à l'entraînement.
+
+**Les deux sources bloquent.** Sans débit frais on ne prédit pas ; sans météo
+`build_dossier` n'assemble rien. `meteo` existe parce que `read_points` ignore
+un point Open-Meteo en échec sans lever : sept points en échec = DataFrame vide
+sans erreur. `check-meteo.py` rend l'échec visible **avant** `predict_archive`,
+et nomme la centrale. Chaque source a 2 retries à 5 min ; `predict_archive`
+aucun (un échec là est un bug ou une donnée absente, pas un réseau qui tousse).
+La vue Grid de l'UI devient de fait le journal de disponibilité des deux API.
+
+**Le DAG hebdo ne pousse pas.** `train --promote` commite et tague en local
+si le KGE bat la production ; le `git push` / `dvc push` restent humains —
+la décision (repo bind-monté ou clone dédié, token en écriture dans un
+conteneur) est en attente, cf. skill `hydro-mlops` §Propositions.
+
+### Lancer
+
+L'image Airflow dérive de l'image projet (`airflow/Dockerfile` :
+`FROM projet_hydro:latest` + `apache-airflow==3.3.1`, +200 Mo de couche
+propre). **Toujours dans cet ordre, jamais les deux dans la même commande** :
+compose construit en parallèle et `airflow` partirait de l'ancienne
+`projet_hydro`.
+
+```bash
+docker compose build app
+docker compose build airflow
+docker compose up -d nginx airflow
+```
+
+UI : <http://localhost:8080> (via nginx, comme mlflow — pas de login en local,
+`SIMPLE_AUTH_MANAGER_ALL_ADMINS`, même logique que `API_KEY` vide ; à durcir
+avant toute exposition). `airflow standalone` = webserver + scheduler + SQLite
+dans un processus : suffisant pour deux DAGs. Un nouveau DAG apparaît **en
+pause** : l'activer dans l'UI (interrupteur) ou
+
+```bash
+docker compose exec airflow airflow dags unpause hydro_train
+```
+
+Modifier un script ou un DAG **ne demande pas de rebuild** (bind mount, le
+scheduler relit `airflow/dags/` toutes les 30 s). Une dépendance dans
+`pyproject.toml` en demande un (`build app` puis `build airflow`).
+
+### Tests
+
+`tests/dags/test_dags.py` charge les DAGs sans lancer Airflow : import sans
+erreur, `task_id` = stages DVC, `catchup=False`, cron hebdo. Il tourne là où
+Airflow est installé :
+
+```bash
+docker compose exec airflow python -m pytest tests/dags -q
+```
+
+Ailleurs (env conda, CI) il est *skipped*, pas rouge — installer 70 paquets
+pour 4 asserts n'a pas de sens.
+
+### Pièges rencontrés
+
+- **CRLF** : `core.autocrlf=true` (défaut Git for Windows) transforme
+  `entrypoint.sh` en CRLF au checkout → `exec entrypoint.sh: no such file or
+  directory` dans **tous** les conteneurs qui l'utilisent (`app`, `api`,
+  `airflow`). `.gitattributes` force LF sur `*.sh`.
+- **Fuseau** : un conteneur est en UTC ; `predict_orchestrator` prend l'heure
+  murale du système pour `generation-date`, qui reculait de 2 h par rapport au
+  même script lancé depuis conda. `TZ=Europe/Paris` dans `x-env`.
+- **`airflow/` est un homonyme Python** : vu depuis la racine, ce dossier est
+  un paquet `airflow` vide. Le test fait `importorskip("airflow.models")`, pas
+  `("airflow")`.
+- **Build parallèle** : cf. ci-dessus, `build app` **puis** `build airflow`.
