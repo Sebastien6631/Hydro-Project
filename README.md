@@ -667,25 +667,21 @@ curl http://localhost:8000/models                              # 401
 curl -H "X-API-Key: ma-cle" http://localhost:8000/models        # 200
 ```
 
-## BentoML — serving alternatif — Phase 3.4
+## BentoML — écarté (Phase 3.4)
 
-Démontre le serving via **BentoML** en plus de l'API FastAPI (phase 1) : même
-logique de prévision (`serving/predict_service.py`, extraite pour ne pas être
-dupliquée entre les deux frameworks), deux surfaces de serving. Port 3000,
-**hors nginx** (démonstration de compétence, pas un 2ᵉ chemin de prod — la
-prod reste FastAPI derrière nginx).
+Un service BentoML alternatif à l'API FastAPI a été construit puis retiré,
+après validation avec le tuteur du projet. Raisons :
 
-Image séparée (`Dockerfile.bento`) : bentoml n'est pas une dépendance du
-cœur du projet ni de l'image app/CI.
-
-```bash
-docker compose up -d bento
-curl -X POST http://localhost:3000/health  -H "content-type: application/json" -d '{}'
-curl -X POST http://localhost:3000/models  -H "content-type: application/json" -d '{}'
-curl -X POST http://localhost:3000/predict -H "content-type: application/json" -d '{"dossier": "touzac_g2_G2"}'
-```
-
-Probes standard BentoML : `GET /livez`, `GET /readyz` (200 si le service a démarré).
+- **BentoML apporte de la valeur quand plusieurs modèles/images doivent être
+  packagés et servis séparément** (versionnement de bundle, routage entre
+  plusieurs services). Ici, tout tient dans **une seule image**
+  (`projet_hydro:latest`) avec deux centrales et un seul horizon : ce
+  problème ne se pose pas.
+- **FastAPI (phase 1), déjà en place, sécurisé (phase 3.3) et suffisant**,
+  couvre exactement le besoin (`/health`, `/models`, `/predict`).
+- Coder un deuxième chemin de serving qui ne sert à rien en production allait
+  à l'encontre du principe du projet (au plus simple, chaque outil justifié
+  par un besoin réel) — retiré plutôt que maintenu comme simple démo.
 
 ## Kubernetes (Helm) — Phase 3.5
 

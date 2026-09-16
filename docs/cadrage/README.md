@@ -252,7 +252,7 @@ normal / crue) et **par saison** pour l'analyse fine
 | Données + modèles versionnés | **DVC + DagsHub** | déjà en place |
 | Suivi d'expériences + registre | **MLflow** | Weights & Biases — payant / hébergé |
 | Orchestration | **Airflow** | Prefect — essayé puis abandonné (Airflow est au programme, connu de l'équipe) |
-| Serving | **FastAPI** puis **BentoML** | — (les deux au programme) |
+| Serving | **FastAPI** | BentoML — construit puis retiré (validé avec le tuteur) : utile pour packager/servir plusieurs images séparément, non pertinent ici où tout tient dans une seule image |
 | Reverse proxy | **NGINX** | — |
 | Stockage artefacts | **MinIO** (ou FS local si mono-poste) | S3 cloud — pas de compte |
 | Monitoring | **Prometheus + Grafana + Evidently** | — |

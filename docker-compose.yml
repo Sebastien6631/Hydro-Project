@@ -111,18 +111,6 @@ services:
         mc ls local/mlflow-artifacts >/dev/null
         echo bucket mlflow-artifacts pret
 
-  # --- Phase 3.4 : démonstration de serving via BentoML (en plus de l'API
-  # FastAPI) -- même logique de prévision (predict_service.py), pas exposé
-  # via nginx : c'est une démo de compétence, pas un 2e chemin de prod.
-  bento:
-    build:
-      context: .
-      dockerfile: Dockerfile.bento
-    volumes:
-      - .:/app
-    ports:
-      - "3000:3000"
-
   # --- Phase 3.1 : orchestration. `standalone` = webserver + scheduler +
   # SQLite dans un seul processus : suffisant pour 2 DAGs et une demo, zero
   # base a gerer. Image = projet + Airflow (airflow/Dockerfile) : les taches
