@@ -11,8 +11,9 @@ défaut (tests/CI inchangés) ; timeouts + rate-limit gérés côté nginx
 (`infrastructure/nginx/nginx.conf`), pas dans l'app -- déjà le point de
 passage unique (phase 2.5).
 
-La logique de prévision (`predict_service.py`, phase 3.4) est partagée avec
-le service BentoML -- cette API ne fait que traduire ses erreurs en HTTP.
+La logique de prévision est isolée dans `predict_service.py` -- cette API ne
+fait que traduire ses erreurs en HTTP (séparation utile même à un seul
+service : garde `api.py` centré sur le protocole HTTP).
 
 Lancement : uvicorn projet_hydro.serving.api:app  (voir docker-compose service `api`).
 """

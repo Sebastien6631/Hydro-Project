@@ -1,5 +1,6 @@
-"""Tests unitaires de la logique de prévision partagée (FastAPI + BentoML).
-`run_prediction` est mocké -- le modèle lui-même est couvert par tests/model/."""
+"""Tests unitaires de la logique de prévision (predict_service.py), isolée
+de l'API HTTP. `run_prediction` est mocké -- le modèle lui-même est couvert
+par tests/model/."""
 
 from __future__ import annotations
 
