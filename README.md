@@ -174,17 +174,25 @@ Une valeur déjà présente dans l'environnement n'est jamais écrasée
 c'est `x-env` de `docker-compose.yml` qui a le dernier mot.
 
 **Conflit `localhost` / `mlflow`** — `MLFLOW_TRACKING_URI` vaut
-`http://localhost:5000` vu de l'hôte, mais dans le réseau compose le serveur
-s'appelle `mlflow`. Le conflit est résolu avec la syntaxe `${VAR:+valeur}` de
-Compose (« si non vide, remplace par »), qui permet à `.env` de fonctionner
-pour Python **et** pour Docker Compose sans variable supplémentaire :
+`https://localhost:5443` vu de l'hôte, mais dans le réseau compose le
+serveur s'appelle `mlflow` (et n'y parle pas HTTPS -- inutile en interne).
+Le conflit est résolu avec la syntaxe `${VAR:+valeur}` de Compose (« si
+non vide, remplace par »), qui permet à `.env` de fonctionner pour Python
+**et** pour Docker Compose sans variable supplémentaire :
 
 ```yaml
 MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI:+http://mlflow:5000}
 ```
 
-`.env` non vide → hôte `localhost:5000`, conteneurs `mlflow:5000`. `.env`
-vide ou absent → vide partout, MLflow inerte (défaut des tests et de la CI).
+`.env` non vide → hôte `https://localhost:5443`, conteneurs `http://mlflow:5000`
+(interne, sans passer par nginx). `.env` vide ou absent → vide partout,
+MLflow inerte (défaut des tests et de la CI).
+
+**Certificat auto-signé (phase 3.6)** : côté hôte, `MLFLOW_TRACKING_URI`
+passe par nginx en HTTPS -- sans `MLFLOW_TRACKING_INSECURE_TLS=true` (dans
+`.env`, cf. `.env.example`), le client MLflow refuse le certificat et
+aucun run n'est enregistré (échec silencieux ou erreur SSL selon
+l'opération). Pas nécessaire côté conteneurs (réseau interne, sans TLS).
 
 ## Pipeline (DVC)
 
@@ -564,10 +572,12 @@ docker compose up -d mlflow
 ```
 
 Les entraînements le trouvent via `MLFLOW_TRACKING_URI` dans `.env` (cf.
-§Configuration — la même ligne sert à l'hôte et aux conteneurs). **Sans cette
-variable, MLflow est inerte** : l'entraînement tourne normalement, aucun run
-n'est enregistré — c'est le mode par défaut des tests et de la CI, qui n'ont
-donc jamais besoin d'un serveur.
+§Configuration — la même ligne sert à l'hôte et aux conteneurs, +
+`MLFLOW_TRACKING_INSECURE_TLS=true` côté hôte, certificat auto-signé
+phase 3.6). **Sans `MLFLOW_TRACKING_URI`, MLflow est inerte** :
+l'entraînement tourne normalement, aucun run n'est enregistré — c'est le
+mode par défaut des tests et de la CI, qui n'ont donc jamais besoin d'un
+serveur.
 
 ### Ce qui est enregistré
 
