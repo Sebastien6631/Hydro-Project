@@ -7,6 +7,10 @@ name: projet_hydro
 # c'est un outil d'admin interne, pas un service applicatif.
 
 x-env: &env
+  # Même fuseau que l'hôte : predict_orchestrator prend l'heure murale du
+  # système pour generation-date -- en UTC (défaut conteneur) elle recule de 2 h
+  # par rapport au même script lancé depuis l'env conda (vu le 2026-09-16).
+  TZ: Europe/Paris
   DAGSHUB_USER: ${DAGSHUB_USER:-}
   DAGSHUB_TOKEN: ${DAGSHUB_TOKEN:-}
   GIT_AUTHOR_NAME: ${GIT_AUTHOR_NAME:-projet_hydro}
