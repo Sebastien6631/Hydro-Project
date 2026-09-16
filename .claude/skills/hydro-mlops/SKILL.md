@@ -95,8 +95,8 @@ main   ← prod : uniquement du code validé à deux
 - Après un entraînement qui promeut un modèle : `git push` **et** `dvc push`
   (`promote_model` committe/tague en local — cf. skill `hydro-projet`).
 - Commits : `type(scope): résumé` (`feat` `fix` `docs` `chore` `test`
-  `refactor`). Si Claude a aidé, finir par
-  `Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>`.
+  `refactor`). Pas de mention d'outil IA dans les commits/PR (auteur = la
+  personne, pas l'outil utilisé).
 - **Historique Git propre + répartition des tâches visible** = critère jury.
 
 ## 5. Stack cible (minimale, justifiée)
@@ -235,6 +235,7 @@ consulter, pas à copier tel quel).
 | 3.3 | **Sécuriser + optimiser l'API** | xh | ✅ | PR #12 mergée `dev`+`main`. Clé API optionnelle (`config.API_KEY`, en-tête `X-API-Key`, vide par défaut = tests/CI inchangés), logs JSON par requête (`request_id`), timeouts+rate-limit côté nginx (10 req/s/IP, 30s read). 6 tests. |
 | 3.4 | **BentoML** — service de serving | xh | ✅ | PR #14 mergée `dev`+`main`. Extrait `predict_service.py` (logique de prévision partagée FastAPI+BentoML, ponytail : zéro duplication). `bento_service.py` (`@bentoml.service`), `Dockerfile.bento` séparé (bentoml pas dans l'image app/CI), port 3000, hors nginx (démo de compétence, pas un 2ᵉ chemin de prod). Vérifié en vrai (curl réel, pas que mocké) : mêmes résultats que l'API FastAPI. |
 | 3.5 | **Scalabilité Docker / Kubernetes (Helm)** | xh | ✅ | PR #13 mergée `dev`+`main`. Chart `infrastructure/helm/projet-hydro/` (Deployment+Service+Ingress+HPA) pour l'API seule (mlflow/minio/nginx restent en compose). `helm lint`/`template` validés sans cluster réel. Limite assumée et documentée : pas de PVC/initContainer `dvc pull`. |
+| 3.6 | **HTTPS** sur nginx | xh | ✅ | `phase3/https-nginx` → PR vers `dev`. Certificat auto-signé (`CN=localhost`, service one-shot `nginx-cert-init`, openssl déjà présent dans l'image `projet_hydro:latest` — `apk add` runtime bloqué dans cet environnement). Ports historiques (8000/5000/8080) redirigent en 301 vers leur équivalent HTTPS (8443/5443/8843) — aucun HTTP en clair servi. Vérifié en vrai : redirection 301 + `/predict` réel via `curl -k https://localhost:8443`. Limite assumée et documentée : cert auto-signé (pas de domaine réel), `-k`/avertissement navigateur à accepter manuellement. |
 
 ### Phase 4
 

@@ -148,22 +148,48 @@ services:
       - airflow-data:/opt/airflow
     command: ["airflow", "standalone"]
 
-  # --- Phase 2.5 : reverse proxy (point d'entrée unique api + mlflow + airflow) ---
+  # --- Phase 3.6 : certificat HTTPS auto-signé pour nginx. Conteneur
+  # one-shot (comme minio-setup) : génère nginx.crt/nginx.key dans le volume
+  # partagé s'ils n'existent pas encore, puis sort -- nginx attend qu'il ait
+  # fini (condition: service_completed_successfully) avant de démarrer.
+  # Réutilise l'image du projet (python:3.11-slim) : openssl y est déjà présent
+  # nativement -- évite un `apk add` réseau à l'exécution (bloqué dans cet
+  # environnement, cf. commentaire du script).
+  nginx-cert-init:
+    image: projet_hydro:latest
+    volumes:
+      - nginx-certs:/certs
+      - ./infrastructure/nginx/generate-cert.sh:/generate-cert.sh:ro
+    entrypoint: ["/bin/sh", "/generate-cert.sh"]
+
+  # --- Phase 2.5 (+ 3.6 HTTPS) : reverse proxy, point d'entrée unique
+  # api + mlflow + airflow. Ports historiques (8000/5000/8080) redirigent en
+  # 301 vers leur équivalent HTTPS (8443/5443/8843, cf. nginx.conf) -- pas de
+  # HTTP en clair servi, certificat auto-signé (pas de domaine réel).
   nginx:
     image: nginx:1.27-alpine
     volumes:
       - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - nginx-certs:/etc/nginx/certs:ro
     ports:
-      - "8000:8000"   # -> api   (identique à avant)
-      - "5000:5000"   # -> mlflow (identique à avant)
-      - "8080:8080"   # -> airflow
+      - "8000:8000"   # -> redirige vers 8443 (api)
+      - "8443:8443"
+      - "5000:5000"   # -> redirige vers 5443 (mlflow)
+      - "5443:5443"
+      - "8080:8080"   # -> redirige vers 8843 (airflow)
+      - "8843:8843"
     # airflow volontairement absent de depends_on : `up nginx` ne doit pas
     # tirer l'image Airflow ; la résolution DNS paresseuse de nginx.conf suffit.
     depends_on:
-      - api
-      - mlflow
+      api:
+        condition: service_started
+      mlflow:
+        condition: service_started
+      nginx-cert-init:
+        condition: service_completed_successfully
 
 volumes:
   mlflow-data:
   minio-data:
   airflow-data:
+  nginx-certs:

@@ -506,10 +506,10 @@ Expose le modèle promu en HTTP. Prévision **h8 uniquement**, sur données
 figées (`source="frozen"`, 100 % reproductible).
 
 ```bash
-docker compose up -d api          # http://localhost:8000
-curl http://localhost:8000/health
-curl http://localhost:8000/models
-curl -X POST http://localhost:8000/predict \
+docker compose up -d nginx        # api n'expose pas de port direct -- via nginx, cf. phases 2.5/3.6
+curl -k https://localhost:8443/health
+curl -k https://localhost:8443/models
+curl -k -X POST https://localhost:8443/predict \
      -H 'content-type: application/json' \
      -d '{"dossier": "touzac_g2_G2"}'
 ```
@@ -557,7 +557,7 @@ Chaque entraînement enregistre ses paramètres, ses métriques KGE et ses
 artefacts dans MLflow, pour comparer deux entraînements autrement qu'en
 diffant deux `results.json` à la main.
 
-Lancer le serveur (UI sur <http://localhost:5000>) :
+Lancer le serveur (UI sur <https://localhost:5443>, cf. phase 3.6 HTTPS) :
 
 ```bash
 docker compose up -d mlflow
@@ -613,15 +613,13 @@ d'index et d'historique des promotions ; DVC porte les octets et le rollback.
 ## Reverse proxy + stockage objet (NGINX + MinIO) — Phase 2
 
 `api` et `mlflow` n'exposent plus de port directement : **nginx** est
-l'unique point d'entrée réseau. Les URLs externes ne changent pas
-(`localhost:8000`, `localhost:5000`) — nginx forwarde vers le conteneur
-interne (`resolver` + résolution DNS paresseuse : nginx démarre même si
-`api`/`mlflow` ne sont pas encore prêts).
+l'unique point d'entrée réseau (`resolver` + résolution DNS paresseuse :
+nginx démarre même si `api`/`mlflow` ne sont pas encore prêts).
 
 ```bash
 docker compose up -d nginx      # démarre aussi api + mlflow (+ minio via mlflow)
-curl http://localhost:8000/health
-open http://localhost:5000       # UI MLflow
+curl -k https://localhost:8443/health   # HTTPS, cf. section suivante
+open https://localhost:5443             # UI MLflow
 ```
 
 **MinIO (stockage objet)** — remplace le volume local des artefacts MLflow
@@ -637,6 +635,36 @@ open http://localhost:9001       # console MinIO (identifiants : .env MINIO_ROOT
 ```
 
 Pas de Postgres pour MLflow : backend SQLite sur volume, suffisant à 2.
+
+## HTTPS (NGINX) — Phase 3.6
+
+nginx est l'unique point d'entrée réseau (phase 2.5) — c'est donc là que le
+chiffrement se met en place, une fois, pour les 3 services (API, MLflow,
+Airflow). Chaque port historique redirige (301) vers son équivalent HTTPS ;
+**aucun trafic en clair n'est servi** :
+
+| Service | Port HTTP (redirection) | Port HTTPS (service réel) |
+|---|---|---|
+| API | 8000 | **8443** |
+| MLflow | 5000 | **5443** |
+| Airflow | 8080 | **8843** |
+
+```bash
+docker compose up -d nginx
+curl http://localhost:8000/health        # 301 -> https://localhost:8443/health
+curl -k https://localhost:8443/health    # -k : certificat auto-signé, cf. limite ci-dessous
+```
+
+**Certificat auto-signé** (`infrastructure/nginx/generate-cert.sh`, exécuté
+une fois par le service compose `nginx-cert-init` — idempotent, ne régénère
+pas si déjà présent) : `CN=localhost`, valable 825 jours. Pas de certificat
+signé par une autorité reconnue (Let's Encrypt ou équivalent) car cela
+suppose un **nom de domaine réel**, absent ici (projet de démonstration,
+`localhost`). **Limite assumée et documentée** : navigateur et curl doivent
+accepter explicitement ce certificat (`-k` en curl, avertissement "connexion
+non privée" à valider manuellement en navigateur) — en production, la même
+configuration nginx fonctionnerait telle quelle derrière un vrai domaine, il
+suffirait de remplacer le certificat auto-signé par un certificat signé.
 
 ## CI (GitHub Actions) — Phase 3
 
@@ -663,8 +691,8 @@ code, pas l'image.
 
 ```bash
 # .env : API_KEY=ma-cle
-curl http://localhost:8000/models                              # 401
-curl -H "X-API-Key: ma-cle" http://localhost:8000/models        # 200
+curl -k https://localhost:8443/models                              # 401
+curl -k -H "X-API-Key: ma-cle" https://localhost:8443/models        # 200
 ```
 
 ## BentoML — serving alternatif — Phase 3.4
@@ -765,7 +793,7 @@ docker compose build airflow
 docker compose up -d nginx airflow
 ```
 
-UI : <http://localhost:8080> (via nginx, comme mlflow — pas de login en local,
+UI : <https://localhost:8843> (via nginx, cf. phase 3.6 HTTPS — pas de login en local,
 `SIMPLE_AUTH_MANAGER_ALL_ADMINS`, même logique que `API_KEY` vide ; à durcir
 avant toute exposition). `airflow standalone` = webserver + scheduler + SQLite
 dans un processus : suffisant pour deux DAGs. Un nouveau DAG apparaît **en
