@@ -29,3 +29,14 @@ groups:
           severity: warning
         annotations:
           summary: "Latence P95 de l'API > 5s depuis 5 min"
+
+      # Phase 4.2 -- data_drift_detected n'est mis à jour qu'au lancement de
+      # check-drift.py (pas en continu) : "for" long, pensé pour survivre
+      # entre deux lancements manuels/planifiés, pas pour réagir vite.
+      - alert: DataDrift
+        expr: data_drift_detected == 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Dérive des données d'entrée détectée pour {{ $labels.dossier }}"

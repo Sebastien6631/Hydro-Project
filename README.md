@@ -833,3 +833,23 @@ pour ce projet de cours -- extension documentée, pas implémentée à l'aveugle
 
 Prometheus/Grafana/node-exporter restent **hors nginx** (outils d'admin
 internes à l'équipe, même raisonnement que la console MinIO).
+
+## Détection de dérive (Evidently) — Phase 4.2
+
+Compare une fenêtre récente de `data_preparation.csv` (30 derniers jours)
+à tout l'historique d'entraînement qui la précède, colonne par colonne
+(test de Kolmogorov-Smirnov, `monitoring/drift.py`). **Signal de
+surveillance, jamais bloquant** (contrairement au contrat `validate-data.py`,
+phase 1.5) : une dérive détectée est loggée, jamais une erreur de pipeline.
+
+```bash
+docker compose run --rm app python cron/scripts/check-drift.py
+docker compose run --rm app python cron/scripts/check-drift.py --dossier touzac_g2_G2
+```
+
+Seuil : **40 % des colonnes en dérive** déclenche `dataset_drift=true`
+(pas une seule colonne isolée). Rapport JSON par centrale sous
+`logs/drift/`, relu par `GET /metrics` (`data_drift_share`,
+`data_drift_detected`) -- jamais recalculé en direct au scrape, un rapport
+Evidently prend de vraies secondes, trop lent pour Prometheus. Alerte
+`DataDrift` dans `infrastructure/prometheus/alert_rules.yml`.
