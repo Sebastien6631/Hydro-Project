@@ -245,7 +245,7 @@ consulter, pas à copier tel quel).
 | 4.2 | **Détection de dérive Evidently** | xh | 🔄 | `phase4/evidently-drift` → PR vers `dev`. `monitoring/drift.py` (test K-S par colonne, seuil 40% de colonnes en dérive = `dataset_drift`), `cron/scripts/check-drift.py` (jamais bloquant, contrairement à `validate-data.py`). Rapports JSON sous `logs/drift/`, relus (pas recalculés) par `/metrics` (`data_drift_share`, `data_drift_detected`) + alerte `DataDrift`. evidently==0.7.23 (version résolue et testée en vrai avant d'écrire le code). |
 | 4.3 | Mises à jour automatisées du modèle | libre | ⬜ | réentraînement + promotion KGE, planifié Airflow |
 | 4.4 | Déploiement cloud (documenté a minima) | équipe | ⏸️ | pas de crédits cloud — stratégie décrite |
-| 4.5 | Documentation technique finale | équipe | ⬜ 🧪 | `ARCHITECTURE.md` + `MLOPS.md` (brique → cours) |
+| 4.5 | **Documentation technique finale** | xh | ✅ | `phase4/doc-technique-finale` → PR vers `dev`. `ARCHITECTURE.md` (vue d'ensemble, composants, flux de données, sécurité, scalabilité/cloud, tests, limites consolidées) + `MLOPS.md` (une ligne par critère de la grille jury §7 → implémentation concrète + référence). Reste : T7 slides de soutenance. |
 | 4.6 | **API Météo France + Hub'Eau** — dé-figer les données | sg | ✅ | `feat/meteo` ; Open-Meteo (modèles Météo-France), **pas de clé d'API nécessaire** ; prédiction live validée. ⚠️ **A changé la forme de sortie** : `niveau0` a disparu (aucun modèle MF ne l'expose, ni ERA5) → 45 → 38 colonnes, anciens modèles incompatibles, réentraînement complet. Historique ramené à 3,8 ans (2022-11-15) pour rester homogène — l'archive ERA5 donne 3× plus de pluie que MF. |
 
 ### Transverse
