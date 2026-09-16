@@ -877,3 +877,32 @@ Seuil : **40 % des colonnes en dérive** déclenche `dataset_drift=true`
 `data_drift_detected`) -- jamais recalculé en direct au scrape, un rapport
 Evidently prend de vraies secondes, trop lent pour Prometheus. Alerte
 `DataDrift` dans `infrastructure/prometheus/alert_rules.yml`.
+
+## Déploiement cloud — stratégie documentée — Phase 4.4
+
+**Pas de crédits cloud pour ce projet de cours** : rien n'est déployé en
+continu chez un fournisseur. Ce qui suit décrit *comment* le stack actuel
+s'y déploierait, brique par brique -- chaque service compose a un
+équivalent managé direct, sans changement de code (mêmes images Docker,
+mêmes variables d'environnement).
+
+| Brique locale (docker-compose) | Équivalent cloud | Changement de code |
+|---|---|---|
+| `api`, `mlflow`, `airflow` (conteneurs) | Conteneurs managés (AWS ECS Fargate / Cloud Run / Azure Container Apps) | Aucun -- mêmes images `projet_hydro:latest` / `projet_hydro-airflow:latest` |
+| `nginx` (reverse proxy + TLS auto-signé, phase 3.6) | Load balancer managé du fournisseur (ALB / Cloud Load Balancing) + certificat géré (ACM ou équivalent) | Aucun côté app -- juste un vrai certificat à la place de celui auto-signé, la limite documentée en phase 3.6 disparaît d'elle-même |
+| `minio` (S3-compatible, phase 2.6) | Stockage objet natif (S3 / GCS / Azure Blob) | Aucun -- MLflow parle déjà l'API S3 via `boto3`/`MLFLOW_S3_ENDPOINT_URL`, changer l'URL et les credentials suffit |
+| MLflow backend SQLite | Base managée (RDS Postgres / Cloud SQL) si plusieurs utilisateurs concurrents | `--backend-store-uri` seulement -- SQLite choisi ici volontairement, suffisant à 2 (cf. phase 2) |
+| `airflow` en mode `standalone` | Service Airflow managé (MWAA / Cloud Composer) ou déploiement multi-nœud (webserver+scheduler+worker+DB) | Aucun sur les DAGs -- `standalone` est une simplification déjà documentée (phase 3.1), pas une impasse |
+| Chart Helm (`infrastructure/helm/projet-hydro/`, phase 3.5) | Déploiement direct sur un cluster managé (EKS / GKE / AKS) | Aucun -- le chart est déjà écrit et validé (`helm lint`/`template`), il ne manque qu'un vrai cluster + les credentials cloud pour le `dvc pull` en initContainer (limite déjà documentée en phase 3.5) |
+| `.env` (secrets : `DAGSHUB_TOKEN`, `API_KEY`, `MINIO_ROOT_*`) | Gestionnaire de secrets managé (AWS Secrets Manager / GCP Secret Manager), injecté en variables d'environnement | Aucun -- le code lit déjà des variables d'environnement (`pydantic-settings`), peu importe leur origine |
+| CI GitHub Actions (phase 3.2) | + un job `deploy` (build, push vers un registre, rolling update) déclenché sur tag/merge `main` | Extension du workflow existant, pas une réécriture |
+
+**DVC/DagsHub ne change pas** : le remote est déjà distant (DagsHub),
+indépendant d'où tourne le calcul.
+
+**Pourquoi documenté plutôt qu'implémenté** : faire tourner ce stack 24/7
+chez un fournisseur pour un projet de cours n'a pas de justification
+(coût récurrent pour zéro utilisateur réel) -- même raisonnement que pour
+BentoML (phase 3.4) : ne pas coder/déployer pour rien. Le fait que docker-
+compose reproduise exactement l'architecture cible (mêmes images, mêmes
+variables d'environnement) démontre la portabilité sans dépenser.
