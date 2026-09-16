@@ -765,7 +765,7 @@ docker compose build airflow
 docker compose up -d nginx airflow
 ```
 
-UI : <http://localhost:8080> (via nginx, comme mlflow — pas de login en local,
+UI : <https://localhost:8843> (via nginx, cf. phase 3.6 HTTPS — pas de login en local,
 `SIMPLE_AUTH_MANAGER_ALL_ADMINS`, même logique que `API_KEY` vide ; à durcir
 avant toute exposition). `airflow standalone` = webserver + scheduler + SQLite
 dans un processus : suffisant pour deux DAGs. Un nouveau DAG apparaît **en
@@ -805,3 +805,31 @@ pour 4 asserts n'a pas de sens.
   un paquet `airflow` vide. Le test fait `importorskip("airflow.models")`, pas
   `("airflow")`.
 - **Build parallèle** : cf. ci-dessus, `build app` **puis** `build airflow`.
+
+## Monitoring (Prometheus + Grafana) — Phase 4.1
+
+`GET /metrics` sur l'API (format Prometheus, `serving/metrics.py`) : compteur
+de requêtes par méthode/route/statut, histogramme de latence, et le **KGE du
+modèle promu par centrale** (recalculé à chaque scrape depuis les
+`version.json` -- pas de thread de rafraîchissement, 2 centrales, YAGNI).
+Public comme `/health` (jamais de clé API), scrapé en interne par Prometheus
+directement sur `api:8000`, pas besoin de passer par nginx.
+
+```bash
+docker compose up -d grafana        # démarre aussi prometheus + node-exporter (+ api)
+curl http://localhost:8000/metrics  # via nginx -- ou direct : docker compose up -d api puis port-forward
+open http://localhost:9090          # Prometheus (requêtes PromQL, onglet Alerts)
+open http://localhost:3001          # Grafana (identifiants : .env GRAFANA_ADMIN_PASSWORD, admin par défaut)
+```
+
+Dashboard provisionné automatiquement (`infrastructure/grafana/dashboards/hydro-overview.json`) :
+requêtes/s par statut, latence P95, KGE par centrale, CPU hôte.
+
+**Seuils d'alerte** (`infrastructure/prometheus/alert_rules.yml`) évalués par
+Prometheus lui-même (onglet *Alerts*) : API injoignable (1 min), KGE < 0.5
+(5 min), latence P95 > 5s (5 min). Pas d'Alertmanager (routage
+email/Slack) : ça demanderait un canal de notification réel qu'on n'a pas
+pour ce projet de cours -- extension documentée, pas implémentée à l'aveugle.
+
+Prometheus/Grafana/node-exporter restent **hors nginx** (outils d'admin
+internes à l'équipe, même raisonnement que la console MinIO).

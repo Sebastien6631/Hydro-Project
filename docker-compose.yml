@@ -163,7 +163,41 @@ services:
       - api
       - mlflow
 
+  # --- Phase 4.1 : monitoring -- direct, pas derrière nginx (outils d'admin
+  # interne à l'équipe, comme la console MinIO ; même raisonnement). Prometheus
+  # scrape l'API en interne (api:8000/metrics), pas besoin de nginx pour ça.
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    volumes:
+      - ./infrastructure/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infrastructure/prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - api
+      - node-exporter
+
+  grafana:
+    image: grafana/grafana:11.3.1
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+    volumes:
+      - ./infrastructure/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infrastructure/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3001:3000"   # 3000 déjà pris par bento (phase 3.4)
+    depends_on:
+      - prometheus
+
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    ports:
+      - "9100:9100"
+
 volumes:
   mlflow-data:
+  grafana-data:
   minio-data:
   airflow-data:
