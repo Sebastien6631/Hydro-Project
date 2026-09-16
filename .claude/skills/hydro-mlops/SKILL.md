@@ -200,7 +200,7 @@ consulter, pas à copier tel quel).
 | Modes d'entraînement automatisés | ✅ | re-branchés via Airflow : DAG `hydro_train` hebdo (lundi 02:00), `train.py` garde la règle d'éligibilité (7 j) |
 | **Docker / Compose** (env conteneurisé) | ✅ | `Dockerfile` + `docker-compose.yml` + `entrypoint.sh` — `docker compose run --rm app` → 340 tests verts. Section README « Conteneurisation ». |
 | **MLflow + Model Registry** | ✅ | `src/projet_hydro/tracking/mlflow_log.py`, service `mlflow` dans compose. Section README « Suivi d'expériences ». |
-| CI · monitoring · k8s | ⬜ | **à construire** |
+| CI · monitoring · k8s | ✅ | ligne obsolète (état au 09/09, avant les phases 3-4) — voir le détail phase par phase ci-dessous : CI = tâche 3.2, monitoring = 4.1/4.2, k8s = 3.5, tous ✅ |
 
 ### Phase 1
 
