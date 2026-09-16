@@ -15,7 +15,11 @@ def test_refresh_model_gauges_sets_kge_per_dossier(monkeypatch):
     assert metrics.MODEL_KGE.labels(dossier="touzac_g2_G2")._value.get() == 0.819
 
 
-def test_refresh_model_gauges_clears_stale_dossiers(monkeypatch):
+def test_refresh_model_gauges_clears_stale_dossiers(tmp_path, monkeypatch):
+    # render_latest() rafraîchit aussi les gauges de dérive (phase 4.2), qui
+    # lisent logs/drift/ sur le disque -- isoler config.ROOT pour ne pas
+    # capter de vrais rapports laissés par un lancement manuel de check-drift.py.
+    monkeypatch.setattr(config, "ROOT", tmp_path)
     monkeypatch.setattr(
         predict_service, "model_infos",
         lambda: [{"dossier": "touzac_g2_G2", "horizon": 8, "kge_stacking": 0.819}],
@@ -29,7 +33,8 @@ def test_refresh_model_gauges_clears_stale_dossiers(monkeypatch):
     assert b'dossier="touzac_g2_G2"' not in body
 
 
-def test_render_latest_exposes_prometheus_format(monkeypatch):
+def test_render_latest_exposes_prometheus_format(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "ROOT", tmp_path)  # cf. commentaire ci-dessus
     monkeypatch.setattr(
         predict_service, "model_infos",
         lambda: [{"dossier": "touzac_g2_G2", "horizon": 8, "kge_stacking": 0.819}],
