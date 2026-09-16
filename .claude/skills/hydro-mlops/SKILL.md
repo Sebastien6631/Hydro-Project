@@ -95,8 +95,8 @@ main   ← prod : uniquement du code validé à deux
 - Après un entraînement qui promeut un modèle : `git push` **et** `dvc push`
   (`promote_model` committe/tague en local — cf. skill `hydro-projet`).
 - Commits : `type(scope): résumé` (`feat` `fix` `docs` `chore` `test`
-  `refactor`). Si Claude a aidé, finir par
-  `Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>`.
+  `refactor`). Pas de mention d'outil IA dans les commits/PR (auteur = la
+  personne, pas l'outil utilisé).
 - **Historique Git propre + répartition des tâches visible** = critère jury.
 
 ## 5. Stack cible (minimale, justifiée)
