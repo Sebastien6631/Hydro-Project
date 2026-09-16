@@ -765,7 +765,7 @@ docker compose build airflow
 docker compose up -d nginx airflow
 ```
 
-UI : <http://localhost:8080> (via nginx, comme mlflow — pas de login en local,
+UI : <https://localhost:8843> (via nginx, cf. phase 3.6 HTTPS — pas de login en local,
 `SIMPLE_AUTH_MANAGER_ALL_ADMINS`, même logique que `API_KEY` vide ; à durcir
 avant toute exposition). `airflow standalone` = webserver + scheduler + SQLite
 dans un processus : suffisant pour deux DAGs. Un nouveau DAG apparaît **en
