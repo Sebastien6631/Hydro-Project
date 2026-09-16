@@ -1,5 +1,5 @@
 """Éligibilité à l'entraînement -- premier entraînement (12 mois d'historique
-minimum, cycle saisonnier complet) ou réentraînement mensuel échu (>= 30 jours
+minimum, cycle saisonnier complet) ou réentraînement hebdomadaire échu (>= 7 jours
 depuis le dernier essai, quelle qu'ait été son issue -- cf. train_state via
 le marker `train_<dossier>_h<horizon>` déjà écrit par cron/scripts/train.py)."""
 
@@ -13,7 +13,10 @@ from projet_hydro.common.dvc_markers import MARKERS_DIR
 from projet_hydro.preprocessing.data_preparation.data_preparation_csv import read_data_preparation_csv
 
 MIN_HISTORY_DAYS = 365
-RETRAIN_INTERVAL_DAYS = 30
+# 7 j : cadence décidée le 2026-09-15 pour le DAG Airflow hebdo (lundi 02:00).
+# Était 30 (mensuel, héritage Previ_v2). La promotion reste conditionnelle au
+# KGE : un entraînement plus fréquent ne peut pas dégrader la production.
+RETRAIN_INTERVAL_DAYS = 7
 
 
 def history_span_days(dossier: str) -> float:
@@ -38,7 +41,7 @@ def last_train_attempt(dossier: str, horizon: int) -> datetime | None:
 
 def is_eligible_for_training(dossier: str, horizon: int, now: datetime | None = None) -> bool:
     """True si premier entraînement possible (12 mois atteints, aucun modèle en
-    prod) OU réentraînement mensuel échu (>= 30 jours depuis le dernier essai)."""
+    prod) OU réentraînement hebdomadaire échu (>= 7 jours depuis le dernier essai)."""
     now = now or datetime.now()
     if history_span_days(dossier) < MIN_HISTORY_DAYS:
         return False
