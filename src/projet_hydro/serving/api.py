@@ -11,8 +11,13 @@ défaut (tests/CI inchangés) ; timeouts + rate-limit gérés côté nginx
 (`infrastructure/nginx/nginx.conf`), pas dans l'app -- déjà le point de
 passage unique (phase 2.5).
 
-La logique de prévision (`predict_service.py`, phase 3.4) est partagée avec
-le service BentoML -- cette API ne fait que traduire ses erreurs en HTTP.
+La logique de prévision est isolée dans `predict_service.py` -- cette API ne
+fait que traduire ses erreurs en HTTP (séparation utile même à un seul
+service : garde `api.py` centré sur le protocole HTTP).
+
+Monitoring (phase 4.1) : `GET /metrics` (Prometheus, `serving/metrics.py`) --
+public comme `/health`, scrapé en interne par Prometheus, jamais par un
+client de l'API.
 
 Lancement : uvicorn projet_hydro.serving.api:app  (voir docker-compose service `api`).
 """
@@ -24,12 +29,12 @@ import logging
 import time
 import uuid
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response
 from pydantic import BaseModel
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from projet_hydro.common import config
-from projet_hydro.serving import predict_service
+from projet_hydro.serving import metrics, predict_service
 from projet_hydro.serving.predict_service import HORIZON, PredictionError
 
 logger = logging.getLogger("projet_hydro.api")
@@ -42,7 +47,8 @@ class RequestLogMiddleware(BaseHTTPMiddleware):
         request_id = uuid.uuid4().hex[:8]
         start = time.monotonic()
         response = await call_next(request)
-        duration_ms = round((time.monotonic() - start) * 1000, 1)
+        duration = time.monotonic() - start
+        duration_ms = round(duration * 1000, 1)
         logger.info(json.dumps({
             "request_id": request_id,
             "method": request.method,
@@ -51,6 +57,10 @@ class RequestLogMiddleware(BaseHTTPMiddleware):
             "duration_ms": duration_ms,
         }))
         response.headers["X-Request-ID"] = request_id
+        metrics.REQUESTS_TOTAL.labels(
+            method=request.method, path=request.url.path, status=response.status_code
+        ).inc()
+        metrics.REQUEST_DURATION.labels(method=request.method, path=request.url.path).observe(duration)
         return response
 
 
@@ -85,6 +95,12 @@ class PredictResponse(BaseModel):
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok", "horizon": HORIZON, "dossiers": predict_service.served_dossiers()}
+
+
+@app.get("/metrics")
+def metrics_endpoint() -> Response:
+    body, content_type = metrics.render_latest()
+    return Response(content=body, media_type=content_type)
 
 
 @app.get("/models", dependencies=[Depends(require_api_key)])

@@ -111,18 +111,6 @@ services:
         mc ls local/mlflow-artifacts >/dev/null
         echo bucket mlflow-artifacts pret
 
-  # --- Phase 3.4 : démonstration de serving via BentoML (en plus de l'API
-  # FastAPI) -- même logique de prévision (predict_service.py), pas exposé
-  # via nginx : c'est une démo de compétence, pas un 2e chemin de prod.
-  bento:
-    build:
-      context: .
-      dockerfile: Dockerfile.bento
-    volumes:
-      - .:/app
-    ports:
-      - "3000:3000"
-
   # --- Phase 3.1 : orchestration. `standalone` = webserver + scheduler +
   # SQLite dans un seul processus : suffisant pour 2 DAGs et une demo, zero
   # base a gerer. Image = projet + Airflow (airflow/Dockerfile) : les taches
@@ -148,22 +136,82 @@ services:
       - airflow-data:/opt/airflow
     command: ["airflow", "standalone"]
 
-  # --- Phase 2.5 : reverse proxy (point d'entrée unique api + mlflow + airflow) ---
+  # --- Phase 3.6 : certificat HTTPS auto-signé pour nginx. Conteneur
+  # one-shot (comme minio-setup) : génère nginx.crt/nginx.key dans le volume
+  # partagé s'ils n'existent pas encore, puis sort -- nginx attend qu'il ait
+  # fini (condition: service_completed_successfully) avant de démarrer.
+  # Réutilise l'image du projet (python:3.11-slim) : openssl y est déjà présent
+  # nativement -- évite un `apk add` réseau à l'exécution (bloqué dans cet
+  # environnement, cf. commentaire du script).
+  nginx-cert-init:
+    image: projet_hydro:latest
+    volumes:
+      - nginx-certs:/certs
+      - ./infrastructure/nginx/generate-cert.sh:/generate-cert.sh:ro
+    entrypoint: ["/bin/sh", "/generate-cert.sh"]
+
+  # --- Phase 2.5 (+ 3.6 HTTPS) : reverse proxy, point d'entrée unique
+  # api + mlflow + airflow. Ports historiques (8000/5000/8080) redirigent en
+  # 301 vers leur équivalent HTTPS (8443/5443/8843, cf. nginx.conf) -- pas de
+  # HTTP en clair servi, certificat auto-signé (pas de domaine réel).
   nginx:
     image: nginx:1.27-alpine
     volumes:
       - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - nginx-certs:/etc/nginx/certs:ro
     ports:
-      - "8000:8000"   # -> api   (identique à avant)
-      - "5000:5000"   # -> mlflow (identique à avant)
-      - "8080:8080"   # -> airflow
+      - "8000:8000"   # -> redirige vers 8443 (api)
+      - "8443:8443"
+      - "5000:5000"   # -> redirige vers 5443 (mlflow)
+      - "5443:5443"
+      - "8080:8080"   # -> redirige vers 8843 (airflow)
+      - "8843:8843"
     # airflow volontairement absent de depends_on : `up nginx` ne doit pas
     # tirer l'image Airflow ; la résolution DNS paresseuse de nginx.conf suffit.
     depends_on:
+      api:
+        condition: service_started
+      mlflow:
+        condition: service_started
+      nginx-cert-init:
+        condition: service_completed_successfully
+
+  # --- Phase 4.1 : monitoring -- direct, pas derrière nginx (outils d'admin
+  # interne à l'équipe, comme la console MinIO ; même raisonnement). Prometheus
+  # scrape l'API en interne (api:8000/metrics), pas besoin de nginx pour ça.
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    volumes:
+      - ./infrastructure/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infrastructure/prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
       - api
-      - mlflow
+      - node-exporter
+
+  grafana:
+    image: grafana/grafana:11.3.1
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+    volumes:
+      - ./infrastructure/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infrastructure/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3001:3000"   # 3000 déjà pris par bento (phase 3.4)
+    depends_on:
+      - prometheus
+
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    ports:
+      - "9100:9100"
 
 volumes:
   mlflow-data:
+  grafana-data:
   minio-data:
   airflow-data:
+  nginx-certs:

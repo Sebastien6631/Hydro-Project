@@ -506,10 +506,10 @@ Expose le modèle promu en HTTP. Prévision **h8 uniquement**, sur données
 figées (`source="frozen"`, 100 % reproductible).
 
 ```bash
-docker compose up -d api          # http://localhost:8000
-curl http://localhost:8000/health
-curl http://localhost:8000/models
-curl -X POST http://localhost:8000/predict \
+docker compose up -d nginx        # api n'expose pas de port direct -- via nginx, cf. phases 2.5/3.6
+curl -k https://localhost:8443/health
+curl -k https://localhost:8443/models
+curl -k -X POST https://localhost:8443/predict \
      -H 'content-type: application/json' \
      -d '{"dossier": "touzac_g2_G2"}'
 ```
@@ -557,7 +557,7 @@ Chaque entraînement enregistre ses paramètres, ses métriques KGE et ses
 artefacts dans MLflow, pour comparer deux entraînements autrement qu'en
 diffant deux `results.json` à la main.
 
-Lancer le serveur (UI sur <http://localhost:5000>) :
+Lancer le serveur (UI sur <https://localhost:5443>, cf. phase 3.6 HTTPS) :
 
 ```bash
 docker compose up -d mlflow
@@ -613,15 +613,13 @@ d'index et d'historique des promotions ; DVC porte les octets et le rollback.
 ## Reverse proxy + stockage objet (NGINX + MinIO) — Phase 2
 
 `api` et `mlflow` n'exposent plus de port directement : **nginx** est
-l'unique point d'entrée réseau. Les URLs externes ne changent pas
-(`localhost:8000`, `localhost:5000`) — nginx forwarde vers le conteneur
-interne (`resolver` + résolution DNS paresseuse : nginx démarre même si
-`api`/`mlflow` ne sont pas encore prêts).
+l'unique point d'entrée réseau (`resolver` + résolution DNS paresseuse :
+nginx démarre même si `api`/`mlflow` ne sont pas encore prêts).
 
 ```bash
 docker compose up -d nginx      # démarre aussi api + mlflow (+ minio via mlflow)
-curl http://localhost:8000/health
-open http://localhost:5000       # UI MLflow
+curl -k https://localhost:8443/health   # HTTPS, cf. section suivante
+open https://localhost:5443             # UI MLflow
 ```
 
 **MinIO (stockage objet)** — remplace le volume local des artefacts MLflow
@@ -637,6 +635,36 @@ open http://localhost:9001       # console MinIO (identifiants : .env MINIO_ROOT
 ```
 
 Pas de Postgres pour MLflow : backend SQLite sur volume, suffisant à 2.
+
+## HTTPS (NGINX) — Phase 3.6
+
+nginx est l'unique point d'entrée réseau (phase 2.5) — c'est donc là que le
+chiffrement se met en place, une fois, pour les 3 services (API, MLflow,
+Airflow). Chaque port historique redirige (301) vers son équivalent HTTPS ;
+**aucun trafic en clair n'est servi** :
+
+| Service | Port HTTP (redirection) | Port HTTPS (service réel) |
+|---|---|---|
+| API | 8000 | **8443** |
+| MLflow | 5000 | **5443** |
+| Airflow | 8080 | **8843** |
+
+```bash
+docker compose up -d nginx
+curl http://localhost:8000/health        # 301 -> https://localhost:8443/health
+curl -k https://localhost:8443/health    # -k : certificat auto-signé, cf. limite ci-dessous
+```
+
+**Certificat auto-signé** (`infrastructure/nginx/generate-cert.sh`, exécuté
+une fois par le service compose `nginx-cert-init` — idempotent, ne régénère
+pas si déjà présent) : `CN=localhost`, valable 825 jours. Pas de certificat
+signé par une autorité reconnue (Let's Encrypt ou équivalent) car cela
+suppose un **nom de domaine réel**, absent ici (projet de démonstration,
+`localhost`). **Limite assumée et documentée** : navigateur et curl doivent
+accepter explicitement ce certificat (`-k` en curl, avertissement "connexion
+non privée" à valider manuellement en navigateur) — en production, la même
+configuration nginx fonctionnerait telle quelle derrière un vrai domaine, il
+suffirait de remplacer le certificat auto-signé par un certificat signé.
 
 ## CI (GitHub Actions) — Phase 3
 
@@ -663,29 +691,25 @@ code, pas l'image.
 
 ```bash
 # .env : API_KEY=ma-cle
-curl http://localhost:8000/models                              # 401
-curl -H "X-API-Key: ma-cle" http://localhost:8000/models        # 200
+curl -k https://localhost:8443/models                              # 401
+curl -k -H "X-API-Key: ma-cle" https://localhost:8443/models        # 200
 ```
 
-## BentoML — serving alternatif — Phase 3.4
+## BentoML — écarté (Phase 3.4)
 
-Démontre le serving via **BentoML** en plus de l'API FastAPI (phase 1) : même
-logique de prévision (`serving/predict_service.py`, extraite pour ne pas être
-dupliquée entre les deux frameworks), deux surfaces de serving. Port 3000,
-**hors nginx** (démonstration de compétence, pas un 2ᵉ chemin de prod — la
-prod reste FastAPI derrière nginx).
+Un service BentoML alternatif à l'API FastAPI a été construit puis retiré,
+après validation avec le tuteur du projet. Raisons :
 
-Image séparée (`Dockerfile.bento`) : bentoml n'est pas une dépendance du
-cœur du projet ni de l'image app/CI.
-
-```bash
-docker compose up -d bento
-curl -X POST http://localhost:3000/health  -H "content-type: application/json" -d '{}'
-curl -X POST http://localhost:3000/models  -H "content-type: application/json" -d '{}'
-curl -X POST http://localhost:3000/predict -H "content-type: application/json" -d '{"dossier": "touzac_g2_G2"}'
-```
-
-Probes standard BentoML : `GET /livez`, `GET /readyz` (200 si le service a démarré).
+- **BentoML apporte de la valeur quand plusieurs modèles/images doivent être
+  packagés et servis séparément** (versionnement de bundle, routage entre
+  plusieurs services). Ici, tout tient dans **une seule image**
+  (`projet_hydro:latest`) avec deux centrales et un seul horizon : ce
+  problème ne se pose pas.
+- **FastAPI (phase 1), déjà en place, sécurisé (phase 3.3) et suffisant**,
+  couvre exactement le besoin (`/health`, `/models`, `/predict`).
+- Coder un deuxième chemin de serving qui ne sert à rien en production allait
+  à l'encontre du principe du projet (au plus simple, chaque outil justifié
+  par un besoin réel) — retiré plutôt que maintenu comme simple démo.
 
 ## Kubernetes (Helm) — Phase 3.5
 
@@ -765,7 +789,7 @@ docker compose build airflow
 docker compose up -d nginx airflow
 ```
 
-UI : <http://localhost:8080> (via nginx, comme mlflow — pas de login en local,
+UI : <https://localhost:8843> (via nginx, cf. phase 3.6 HTTPS — pas de login en local,
 `SIMPLE_AUTH_MANAGER_ALL_ADMINS`, même logique que `API_KEY` vide ; à durcir
 avant toute exposition). `airflow standalone` = webserver + scheduler + SQLite
 dans un processus : suffisant pour deux DAGs. Un nouveau DAG apparaît **en
@@ -805,3 +829,51 @@ pour 4 asserts n'a pas de sens.
   un paquet `airflow` vide. Le test fait `importorskip("airflow.models")`, pas
   `("airflow")`.
 - **Build parallèle** : cf. ci-dessus, `build app` **puis** `build airflow`.
+
+## Monitoring (Prometheus + Grafana) — Phase 4.1
+
+`GET /metrics` sur l'API (format Prometheus, `serving/metrics.py`) : compteur
+de requêtes par méthode/route/statut, histogramme de latence, et le **KGE du
+modèle promu par centrale** (recalculé à chaque scrape depuis les
+`version.json` -- pas de thread de rafraîchissement, 2 centrales, YAGNI).
+Public comme `/health` (jamais de clé API), scrapé en interne par Prometheus
+directement sur `api:8000`, pas besoin de passer par nginx.
+
+```bash
+docker compose up -d grafana        # démarre aussi prometheus + node-exporter (+ api)
+curl http://localhost:8000/metrics  # via nginx -- ou direct : docker compose up -d api puis port-forward
+open http://localhost:9090          # Prometheus (requêtes PromQL, onglet Alerts)
+open http://localhost:3001          # Grafana (identifiants : .env GRAFANA_ADMIN_PASSWORD, admin par défaut)
+```
+
+Dashboard provisionné automatiquement (`infrastructure/grafana/dashboards/hydro-overview.json`) :
+requêtes/s par statut, latence P95, KGE par centrale, CPU hôte.
+
+**Seuils d'alerte** (`infrastructure/prometheus/alert_rules.yml`) évalués par
+Prometheus lui-même (onglet *Alerts*) : API injoignable (1 min), KGE < 0.5
+(5 min), latence P95 > 5s (5 min). Pas d'Alertmanager (routage
+email/Slack) : ça demanderait un canal de notification réel qu'on n'a pas
+pour ce projet de cours -- extension documentée, pas implémentée à l'aveugle.
+
+Prometheus/Grafana/node-exporter restent **hors nginx** (outils d'admin
+internes à l'équipe, même raisonnement que la console MinIO).
+
+## Détection de dérive (Evidently) — Phase 4.2
+
+Compare une fenêtre récente de `data_preparation.csv` (30 derniers jours)
+à tout l'historique d'entraînement qui la précède, colonne par colonne
+(test de Kolmogorov-Smirnov, `monitoring/drift.py`). **Signal de
+surveillance, jamais bloquant** (contrairement au contrat `validate-data.py`,
+phase 1.5) : une dérive détectée est loggée, jamais une erreur de pipeline.
+
+```bash
+docker compose run --rm app python cron/scripts/check-drift.py
+docker compose run --rm app python cron/scripts/check-drift.py --dossier touzac_g2_G2
+```
+
+Seuil : **40 % des colonnes en dérive** déclenche `dataset_drift=true`
+(pas une seule colonne isolée). Rapport JSON par centrale sous
+`logs/drift/`, relu par `GET /metrics` (`data_drift_share`,
+`data_drift_detected`) -- jamais recalculé en direct au scrape, un rapport
+Evidently prend de vraies secondes, trop lent pour Prometheus. Alerte
+`DataDrift` dans `infrastructure/prometheus/alert_rules.yml`.

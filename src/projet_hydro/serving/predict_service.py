@@ -1,11 +1,9 @@
-"""Logique de prévision partagée par les deux surfaces de serving (FastAPI
-`api.py` et BentoML `bento_service.py`, phase 3.4) -- évite de dupliquer
-`has_production_model`/lecture `bv.json`/`data_preparation.csv` entre les deux.
+"""Logique de prévision, isolée de `api.py` -- sépare le métier (lecture
+`bv.json`/`data_preparation.csv`, `has_production_model`) du protocole HTTP.
 
-`PredictionError` est une erreur *utilisateur* (dossier/modèle absent) --
-chaque framework la traduit dans son propre vocabulaire d'erreur (HTTP 404
-côté FastAPI, `bentoml.exceptions.NotFound` côté BentoML). Toute autre
-exception reste une erreur serveur (500 / InternalServerError)."""
+`PredictionError` est une erreur *utilisateur* (dossier/modèle absent) que
+`api.py` traduit en HTTP 404. Toute autre exception reste une erreur serveur
+(500)."""
 
 from __future__ import annotations
 

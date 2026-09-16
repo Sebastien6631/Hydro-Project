@@ -95,8 +95,8 @@ main   ← prod : uniquement du code validé à deux
 - Après un entraînement qui promeut un modèle : `git push` **et** `dvc push`
   (`promote_model` committe/tague en local — cf. skill `hydro-projet`).
 - Commits : `type(scope): résumé` (`feat` `fix` `docs` `chore` `test`
-  `refactor`). Si Claude a aidé, finir par
-  `Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>`.
+  `refactor`). Pas de mention d'outil IA dans les commits/PR (auteur = la
+  personne, pas l'outil utilisé).
 - **Historique Git propre + répartition des tâches visible** = critère jury.
 
 ## 5. Stack cible (minimale, justifiée)
@@ -109,7 +109,7 @@ main   ← prod : uniquement du code validé à deux
 | Stockage objet artefacts | **MinIO** (ou FS local si mono-poste) | S3 cloud (pas de compte) |
 | Suivi d'expériences + registre | **MLflow + Model Registry** | Weights & Biases (optionnel) |
 | Orchestration | **Airflow** | **Prefect** (essayé puis abandonné : Airflow est au programme et Sébastien le connaît) |
-| Serving | **BentoML** et/ou **FastAPI** | — (BentoML au programme MLOps) |
+| Serving | **FastAPI** | BentoML — construit (phase 3.4) puis retiré sur décision du tuteur : utile pour packager plusieurs modèles en images séparées, pas de besoin réel ici (une seule image) |
 | Monitoring | **Prometheus + Grafana** + **Evidently** (dérive) | — (au programme) |
 | CI | **GitHub Actions** | Jenkins (optionnel) |
 | Scalabilité | **Kubernetes** (Helm) | — (au programme, critère jury) |
@@ -233,15 +233,16 @@ consulter, pas à copier tel quel).
 | 3.1 | **Airflow** — orchestration bout-en-bout | sg | ✅ | `phase3/airflow` → PR vers `dev`. `airflow/dags/hydro_predict.py` (horaire h+5 : `sources{debit ∥ meteo}` → `predict_archive`, les deux sources bloquent, validé en vrai 75 s) et `hydro_train.py` (lundi 02:00 : `data_preparation` → `validate --strict` → `train --promote`, **sans push** — décision en attente, cf. Propositions). Image `airflow/Dockerfile` = `FROM projet_hydro` + Airflow 3.3.1 (`build app` **puis** `build airflow`), `standalone`, derrière nginx `:8080`. `task_id` = stages DVC, scripts et pas `dvc repro`. `cron/scripts/check-meteo.py` (read_points ignore les échecs → check explicite). `tests/dags/` (skip sans Airflow). `RETRAIN_INTERVAL_DAYS` 30→7. Pièges réglés : CRLF sur `*.sh` (`.gitattributes`), TZ UTC des conteneurs (`TZ` dans x-env), `airflow/` homonyme Python. Section README « Orchestration (Airflow) ». |
 | 3.2 | **Pipeline CI** (`ruff` + `pytest` sur PR) | xh | ✅ | `phase3/ci` → PR vers `dev`. Job `lint-test` GitHub Actions, Python natif (pas Docker), `ruff` E/F seulement (0 erreur, 3 fixées), `pytest -q` sur fixtures synthétiques (aucun secret requis) → 313 passed. |
 | 3.3 | **Sécuriser + optimiser l'API** | xh | ✅ | PR #12 mergée `dev`+`main`. Clé API optionnelle (`config.API_KEY`, en-tête `X-API-Key`, vide par défaut = tests/CI inchangés), logs JSON par requête (`request_id`), timeouts+rate-limit côté nginx (10 req/s/IP, 30s read). 6 tests. |
-| 3.4 | **BentoML** — service de serving | xh | ✅ | PR #14 mergée `dev`+`main`. Extrait `predict_service.py` (logique de prévision partagée FastAPI+BentoML, ponytail : zéro duplication). `bento_service.py` (`@bentoml.service`), `Dockerfile.bento` séparé (bentoml pas dans l'image app/CI), port 3000, hors nginx (démo de compétence, pas un 2ᵉ chemin de prod). Vérifié en vrai (curl réel, pas que mocké) : mêmes résultats que l'API FastAPI. |
+| 3.4 | **BentoML** — construit puis retiré | xh | ✅ | PR #14 mergée puis retirée (branche `phase3/remove-bentoml`), sur décision du tuteur : « ça ne sert à rien de coder pour rien ». BentoML apporte de la valeur pour packager/servir plusieurs modèles depuis des images séparées — ici tout tient dans une seule image (`projet_hydro:latest`), donc pas de besoin réel. FastAPI (3.3, sécurisée) suffit. `predict_service.py` (extrait pendant 3.4) est conservé : `api.py` en dépend, indépendamment de BentoML. Raisonnement documenté dans le README plutôt que le code gardé pour rien. |
 | 3.5 | **Scalabilité Docker / Kubernetes (Helm)** | xh | ✅ | PR #13 mergée `dev`+`main`. Chart `infrastructure/helm/projet-hydro/` (Deployment+Service+Ingress+HPA) pour l'API seule (mlflow/minio/nginx restent en compose). `helm lint`/`template` validés sans cluster réel. Limite assumée et documentée : pas de PVC/initContainer `dvc pull`. |
+| 3.6 | **HTTPS** sur nginx | xh | ✅ | `phase3/https-nginx` → PR vers `dev`. Certificat auto-signé (`CN=localhost`, service one-shot `nginx-cert-init`, openssl déjà présent dans l'image `projet_hydro:latest` — `apk add` runtime bloqué dans cet environnement). Ports historiques (8000/5000/8080) redirigent en 301 vers leur équivalent HTTPS (8443/5443/8843) — aucun HTTP en clair servi. Vérifié en vrai : redirection 301 + `/predict` réel via `curl -k https://localhost:8443`. Limite assumée et documentée : cert auto-signé (pas de domaine réel), `-k`/avertissement navigateur à accepter manuellement. |
 
 ### Phase 4
 
 | # | Tâche | Qui | État | Notes |
 |---|---|---|---|---|
-| 4.1 | Prometheus + Grafana + **seuils d'alerte** | libre | ⬜ 🧪 | dashboards provisionnés + règles d'alerte |
-| 4.2 | Détection de dérive Evidently | libre | ⬜ 🧪 | dérive features d'entrée vs fenêtre d'entraînement |
+| 4.1 | **Prometheus + Grafana + seuils d'alerte** | xh | ✅ | PR #15 mergée `dev`. `GET /metrics` (Prometheus, `serving/metrics.py`) sur l'API : requêtes/latence + KGE par centrale (recalculé au scrape, pas de thread). Dashboard provisionné (requêtes/s, latence P95, KGE, CPU hôte). 3 règles d'alerte évaluées par Prometheus (API down, KGE<0.5, latence P95>5s) -- pas d'Alertmanager (pas de canal de notif réel à câbler). Hors nginx (comme MinIO). |
+| 4.2 | **Détection de dérive Evidently** | xh | 🔄 | `phase4/evidently-drift` → PR vers `dev`. `monitoring/drift.py` (test K-S par colonne, seuil 40% de colonnes en dérive = `dataset_drift`), `cron/scripts/check-drift.py` (jamais bloquant, contrairement à `validate-data.py`). Rapports JSON sous `logs/drift/`, relus (pas recalculés) par `/metrics` (`data_drift_share`, `data_drift_detected`) + alerte `DataDrift`. evidently==0.7.23 (version résolue et testée en vrai avant d'écrire le code). |
 | 4.3 | Mises à jour automatisées du modèle | libre | ⬜ | réentraînement + promotion KGE, planifié Airflow |
 | 4.4 | Déploiement cloud (documenté a minima) | équipe | ⏸️ | pas de crédits cloud — stratégie décrite |
 | 4.5 | Documentation technique finale | équipe | ⬜ 🧪 | `ARCHITECTURE.md` + `MLOPS.md` (brique → cours) |
