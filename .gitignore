@@ -28,6 +28,7 @@ venv/
 # Dossier claude (scratch superpowers) -- sauf la doc projet versionnee
 /docs/*
 !/docs/cadrage/
+!/docs/soutenance/
 
 # Artefacts modèle — squelette versionné, contenu ignoré
 /weights/*
