@@ -67,7 +67,7 @@ curl -k -X POST https://localhost:8443/predict -H "X-API-Key: $API_KEY" -H 'cont
 
 ## Plan B — captures faites le 20/10 (`docs/soutenance/captures/`)
 
-Faites : `mlflow_run_touzac.jpg`, `airflow_liste_dags.jpg`, `airflow_hydro_predict_run_vert.jpg`, `grafana_dashboard.jpg`, `prometheus_alerte_datadrift.jpg`. Restent : terminal 401 / 200 / `/predict` (à faire par Xavier). Pas de capture du registre (vide, cf. règles ci-dessus).
+Faites : `mlflow_run_touzac.jpg`, `airflow_liste_dags.jpg`, `airflow_hydro_predict_run_vert.jpg`, `grafana_dashboard.jpg`, `prometheus_alerte_datadrift.jpg`. Terminal (PowerShell) : `terminal_api_401_models.png` (refus sans clé puis `/models`), `terminal_api_predict_1.png` + `_2.png` (prévision Touzac sur 8 h). Pas de capture du registre (vide, cf. règles ci-dessus).
 
 Liste initiale :
 
