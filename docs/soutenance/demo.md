@@ -34,13 +34,27 @@ curl -k https://localhost:8443/health          # doit répondre ok
 
 ## Commandes (à mettre dans l'historique)
 
-```bash
-curl -k https://localhost:8443/models
-curl -k -H "X-API-Key: $API_KEY" https://localhost:8443/models
-curl -k -X POST https://localhost:8443/predict -H "X-API-Key: $API_KEY" -H 'content-type: application/json' -d '{"dossier": "touzac_g2_G2"}'
+PowerShell (Windows) — `curl.exe`, pas `curl` (alias PowerShell d'une autre commande) :
+
+```powershell
+cd ~\Hydro-Project
+$env:API_KEY = ((Select-String -Path .env -Pattern '^API_KEY=').Line | Select-Object -Last 1).Split('=',2)[1]
+
+curl.exe -k https://localhost:8443/models
+curl.exe -k -H "X-API-Key: $env:API_KEY" https://localhost:8443/models | python -m json.tool
+curl.exe -k -X POST https://localhost:8443/predict -H "X-API-Key: $env:API_KEY" -H "content-type: application/json" -d '{\"dossier\": \"touzac_g2_G2\"}' | python -m json.tool
 ```
 
-> Pour une sortie lisible, ajouter `| python -m json.tool` (vérifier à la répétition que le format tient à l'écran).
+Bash (Git Bash, Linux, macOS) :
+
+```bash
+export API_KEY=$(grep '^API_KEY=' .env | tail -1 | cut -d= -f2)
+curl -k https://localhost:8443/models
+curl -k -H "X-API-Key: $API_KEY" https://localhost:8443/models | python -m json.tool
+curl -k -X POST https://localhost:8443/predict -H "X-API-Key: $API_KEY" -H 'content-type: application/json' -d '{"dossier": "touzac_g2_G2"}' | python -m json.tool
+```
+
+> La clé est lue dans `.env`, jamais tapée ni affichée à l'écran. Vérifier à la répétition que la sortie JSON tient à l'écran.
 
 ## Plan B — captures à faire mardi 20/10
 
