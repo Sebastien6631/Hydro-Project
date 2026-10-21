@@ -91,8 +91,8 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
     ports:
-      - "9000:9000"   # API S3 (utilisée par mlflow en interne, exposée pour debug)
-      - "9001:9001"   # console web -- direct, pas derrière nginx (cf. README)
+      # 9000 (API S3) non publié : mlflow y accède par le réseau docker interne.
+      - "127.0.0.1:9001:9001"   # console web -- direct, pas derrière nginx (cf. README)
     volumes:
       - minio-data:/data
 
@@ -163,12 +163,14 @@ services:
       - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - nginx-certs:/etc/nginx/certs:ro
     ports:
+      # Seule l'API (clé X-API-Key) est publiée sur le réseau ; MLflow et
+      # Airflow (outils d'admin sans auth) restent sur l'hôte, comme Prometheus/Grafana/MinIO.
       - "8000:8000"   # -> redirige vers 8443 (api)
       - "8443:8443"
-      - "5000:5000"   # -> redirige vers 5443 (mlflow)
-      - "5443:5443"
-      - "8080:8080"   # -> redirige vers 8843 (airflow)
-      - "8843:8843"
+      - "127.0.0.1:5000:5000"   # -> redirige vers 5443 (mlflow) ; hôte uniquement (admin, sans auth)
+      - "127.0.0.1:5443:5443"
+      - "127.0.0.1:8080:8080"   # -> redirige vers 8843 (airflow) ; hôte uniquement (ALL_ADMINS)
+      - "127.0.0.1:8843:8843"
     # airflow volontairement absent de depends_on : `up nginx` ne doit pas
     # tirer l'image Airflow ; la résolution DNS paresseuse de nginx.conf suffit.
     depends_on:
@@ -188,7 +190,7 @@ services:
       - ./infrastructure/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./infrastructure/prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
     ports:
-      - "9090:9090"
+      - "127.0.0.1:9090:9090"   # hôte uniquement (admin, sans auth)
     depends_on:
       - api
       - node-exporter
@@ -203,14 +205,13 @@ services:
       - ./infrastructure/grafana/dashboards:/var/lib/grafana/dashboards:ro
       - grafana-data:/var/lib/grafana
     ports:
-      - "3001:3000"   # 3000 déjà pris par bento (phase 3.4)
+      - "127.0.0.1:3001:3000"   # hôte uniquement ; 3001 conservé (BentoML retiré en 3.4, 3000 libre)
     depends_on:
       - prometheus
 
   node-exporter:
     image: prom/node-exporter:v1.8.2
-    ports:
-      - "9100:9100"
+    # Pas de `ports:` -- prometheus le scrape en interne (node-exporter:9100).
 
 volumes:
   mlflow-data:
