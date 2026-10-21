@@ -79,6 +79,9 @@ services:
       - --backend-store-uri=sqlite:////mlflow/mlflow.db
       - --serve-artifacts
       - --artifacts-destination=s3://mlflow-artifacts
+      # MLflow 3.x rejette les en-tetes Host inconnus (anti DNS rebinding) :
+      # `mlflow:5000` (conteneurs) et `localhost:5443` (via nginx) doivent etre listes.
+      - --allowed-hosts=mlflow,mlflow:5000,localhost,localhost:5000,localhost:5443,127.0.0.1
 
   # --- Phase 2.6 : stockage objet des artefacts MLflow (remplace le volume local) ---
   minio:
