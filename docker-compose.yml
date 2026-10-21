@@ -160,12 +160,14 @@ services:
       - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - nginx-certs:/etc/nginx/certs:ro
     ports:
+      # Seule l'API (clé X-API-Key) est publiée sur le réseau ; MLflow et
+      # Airflow (outils d'admin sans auth) restent sur l'hôte, comme Prometheus/Grafana/MinIO.
       - "8000:8000"   # -> redirige vers 8443 (api)
       - "8443:8443"
-      - "5000:5000"   # -> redirige vers 5443 (mlflow)
-      - "5443:5443"
-      - "8080:8080"   # -> redirige vers 8843 (airflow)
-      - "8843:8843"
+      - "127.0.0.1:5000:5000"   # -> redirige vers 5443 (mlflow) ; hôte uniquement (admin, sans auth)
+      - "127.0.0.1:5443:5443"
+      - "127.0.0.1:8080:8080"   # -> redirige vers 8843 (airflow) ; hôte uniquement (ALL_ADMINS)
+      - "127.0.0.1:8843:8843"
     # airflow volontairement absent de depends_on : `up nginx` ne doit pas
     # tirer l'image Airflow ; la résolution DNS paresseuse de nginx.conf suffit.
     depends_on:
